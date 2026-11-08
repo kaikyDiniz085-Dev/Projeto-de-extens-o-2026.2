@@ -45,25 +45,35 @@ def calcular_passou_uma_hora(criado_em) -> bool:
 
 def normalizar_papel(papel_bruto: Optional[str]) -> str:
     p = str(papel_bruto or "").strip()
+    if "Cerimoniário" in p:
+        return "Cerimoniário"
     if p == "Coroinha":
         return "Coroinha"
-    if p == "Cerimoniário":
-        return "Cerimoniário"
+    if p == "Coordenação":
+        return "Coordenação"
     return p
 
 
 def validar_mesmo_papel_liturgico(solicitante: Usuario, substituto: Usuario):
     """
-    Regra Estrita: Coroinha só troca com Coroinha e Cerimoniário só com Cerimoniário.
+    - 'Coordenação / Cerimoniário' e 'Cerimoniário' trocam entre si normalmente.
+    - 'Coroinha' só troca com 'Coroinha'.
+    - 'Coordenação' exclusivo (Veriane e Roberta) não participa de escalas de altar.
     """
     papel_sol = normalizar_papel(solicitante.papel)
     papel_sub = normalizar_papel(substituto.papel)
+
+    if papel_sol == "Coordenação" or papel_sub == "Coordenação":
+        raise HTTPException(
+            status_code=403,
+            detail="Perfis exclusivos de Coordenação não participam de trocas ou escalas de altar.",
+        )
 
     if papel_sol in ["Coroinha", "Cerimoniário"] and papel_sol != papel_sub:
         raise HTTPException(
             status_code=403,
             detail=(
-                f"Operação bloqueada: Seu perfil é '{papel_sol}' e você só pode "
+                f"Operação bloqueada: Seu perfil litúrgico é '{papel_sol}' e você só pode "
                 f"solicitar troca ou substituição com outro '{papel_sol}'."
             ),
         )
