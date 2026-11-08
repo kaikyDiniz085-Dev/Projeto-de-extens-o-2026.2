@@ -1,6 +1,14 @@
 from datetime import datetime, date
 from sqlalchemy import (
-    Column, Integer, String, Boolean, Date, DateTime, ForeignKey, Text, JSON
+    Column,
+    Integer,
+    String,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Text,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -14,10 +22,14 @@ class Usuario(Base):
     iniciais = Column(String(5), nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
     senha_hash = Column(String(255), nullable=False)
-    papel = Column(String(30), nullable=False, default="Coroinha")  # "Coordenação", "Cerimoniário", "Coroinha"
+    papel = Column(
+        String(30), nullable=False, default="Coroinha"
+    )  # "Coordenação", "Cerimoniário", "Coroinha"
     is_admin = Column(Boolean, default=False)
 
-    escalas = relationship("Escala", back_populates="coroinha", foreign_keys="Escala.coroinha_id")
+    escalas = relationship(
+        "Escala", back_populates="coroinha", foreign_keys="Escala.coroinha_id"
+    )
     disponibilidades = relationship("DisponibilidadeMensal", back_populates="coroinha")
 
 
@@ -25,18 +37,24 @@ class Missa(Base):
     __tablename__ = "missas"
 
     id = Column(Integer, primary_key=True, index=True)
-    codigo = Column(String(40), unique=True, index=True, nullable=False)  # ex: SEM_01_10
+    codigo = Column(
+        String(40), unique=True, index=True, nullable=False
+    )  # ex: SEM_01_10
     coluna_a4 = Column(String(20), default="SEMANA")  # "SEMANA" ou "FDS"
-    grupo_fds = Column(Integer, nullable=True)        # 1, 2, 3, 4 (para o grid do fim de semana)
+    grupo_fds = Column(
+        Integer, nullable=True
+    )  # 1, 2, 3, 4 (para o grid do fim de semana)
     data = Column(Date, nullable=False, index=True)
-    data_curta = Column(String(15), nullable=True)    # ex: 01/10/26
+    data_curta = Column(String(15), nullable=True)  # ex: 01/10/26
     dia_semana = Column(String(30), nullable=False)
     titulo_liturgico = Column(String(200), nullable=False)
     subtitulo_horario = Column(String(100), nullable=False)
-    turno = Column(String(20), nullable=False)        # "Manhã", "Tarde", "Noite"
-    horario = Column(String(20), nullable=False)      # "07:00H", "17:00H", "19:00H"
+    turno = Column(String(20), nullable=False)  # "Manhã", "Tarde", "Noite"
+    horario = Column(String(20), nullable=False)  # "07:00H", "17:00H", "19:00H"
 
-    posicoes = relationship("Escala", back_populates="missa", cascade="all, delete-orphan")
+    posicoes = relationship(
+        "Escala", back_populates="missa", cascade="all, delete-orphan"
+    )
     relatorios = relationship("RelatorioPresenca", back_populates="missa")
 
 
@@ -45,14 +63,20 @@ class Escala(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     missa_id = Column(Integer, ForeignKey("missas.id"), nullable=False)
-    funcao = Column(String(40), nullable=False)  # CRUZ, TOCHA, MISSAL, MESTRE, TURÍBULO, NAVETA, AUXILIAR
+    funcao = Column(
+        String(40), nullable=False
+    )  # CRUZ, TOCHA, MISSAL, MESTRE, TURÍBULO, NAVETA, AUXILIAR
     coroinha_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
-    status = Column(String(20), nullable=False, default="CONFIRMADO")  # CONFIRMADO, PENDENTE, TROCA
+    status = Column(
+        String(20), nullable=False, default="CONFIRMADO"
+    )  # CONFIRMADO, PENDENTE, TROCA
     substituto_nome = Column(String(120), nullable=True)
     detalhe_status = Column(String(255), default="Presença confirmada")
 
     missa = relationship("Missa", back_populates="posicoes")
-    coroinha = relationship("Usuario", back_populates="escalas", foreign_keys=[coroinha_id])
+    coroinha = relationship(
+        "Usuario", back_populates="escalas", foreign_keys=[coroinha_id]
+    )
 
 
 class TrocaSubstituicao(Base):
@@ -68,7 +92,9 @@ class TrocaSubstituicao(Base):
     data_2 = Column(Date, nullable=True)
     turno_2 = Column(String(20), nullable=True)
     comentario = Column(Text, nullable=True)
-    status_aprovacao = Column(String(20), default="PENDENTE")  # PENDENTE, APROVADA, REPROVADA
+    status_aprovacao = Column(
+        String(20), default="PENDENTE"
+    )  # PENDENTE, APROVADA, REPROVADA
     avaliado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 
@@ -85,7 +111,9 @@ class RelatorioPresenca(Base):
     missa_id = Column(Integer, ForeignKey("missas.id"), nullable=False)
     cerimoniario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     enviado_em = Column(DateTime, default=datetime.utcnow)
-    status_validacao = Column(String(30), default="PENDENTE_VALIDACAO")  # PENDENTE_VALIDACAO, VALIDADO
+    status_validacao = Column(
+        String(30), default="PENDENTE_VALIDACAO"
+    )  # PENDENTE_VALIDACAO, VALIDADO
     validado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     observacao_geral = Column(Text, nullable=True)
     foto_url = Column(String(255), nullable=True)
@@ -93,7 +121,9 @@ class RelatorioPresenca(Base):
     missa = relationship("Missa", back_populates="relatorios")
     cerimoniario = relationship("Usuario", foreign_keys=[cerimoniario_id])
     validado_por = relationship("Usuario", foreign_keys=[validado_por_id])
-    itens_chamada = relationship("ItemChamada", back_populates="relatorio", cascade="all, delete-orphan")
+    itens_chamada = relationship(
+        "ItemChamada", back_populates="relatorio", cascade="all, delete-orphan"
+    )
 
 
 class ItemChamada(Base):

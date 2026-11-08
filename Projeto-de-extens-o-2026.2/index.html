@@ -11463,21 +11463,16 @@ MARIA FERNANDA 30/10</textarea>
         });
 
         // ============================================================================
-        // MÓDULO SÊNIOR: NOVO FLUXO DE "INFORMAR FALTA" (MODAL 2 ETAPAS, ATALHO DE TROCA,
-        // CARD CINZA BLOQUEADO, ALERTA NA ESCALA GERAL E NOTIFICAÇÃO DE VAGA ASSUMIDA)
-      
+        // MÓDULO SÊNIOR: FLUXO DE FALTA + VALIDAÇÃO ESTRITA DE PAPÉIS (ROLE-BASED)
+        // Coroinha <-> Coroinha | Cerimoniário <-> Cerimoniário
         // ============================================================================
         (function () {
             const STORAGE_FALTAS_KEY = "saojudas_faltas_detalhadas_db";
             let escalaIdFaltaEmAndamento = null;
-            let modalFaltaUrgenciaInstance = null;
 
             function carregarFaltasStorage() {
-                try {
-                    return JSON.parse(localStorage.getItem(STORAGE_FALTAS_KEY) || "[]");
-                } catch (e) {
-                    return [];
-                }
+                try { return JSON.parse(localStorage.getItem(STORAGE_FALTAS_KEY) || "[]"); }
+                catch (e) { return []; }
             }
 
             function salvarFaltasStorage(lista) {
@@ -11493,20 +11488,137 @@ MARIA FERNANDA 30/10</textarea>
                 return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : dataISO;
             }
 
-            // 1. Injeta os estilos visuais do Card Cinza (Abandonado/Desativado) e Alertas
+            // ========================================================================
+            // REGRAS DE NEGÓCIO: SEPARAÇÃO ESTRITA ENTRE COROINHA E CERIMONIÁRIO
+            // ========================================================================
+            function normalizarPapelLiturgico(papelBruto) {
+                const p = String(papelBruto || "").trim();
+                if (p === "Coroinha") return "Coroinha";
+                if (p === "Cerimoniário") return "Cerimoniário";
+                return p;
+            }
+
+            /**
+             * Descobre o papel ("Coroinha" ou "Cerimoniário") do titular de uma vaga/escala
+             */
+            function obterPapelDoTitularDaEscala(escala, regFaltaOpcional = null) {
+                if (regFaltaOpcional && regFaltaOpcional.faltosoPapel) {
+                    return normalizarPapelLiturgico(regFaltaOpcional.faltosoPapel);
+                }
+                if (escala && escala.faltosoPapel) {
+                    return normalizarPapelLiturgico(escala.faltosoPapel);
+                }
+                if (escala && Array.isArray(coroinhasDB)) {
+                    const membro = coroinhasDB.find(
+                        c => Number(c.id) === Number(escala.coroinhaId) ||
+                             (c.nome || "").trim().toUpperCase() === (escala.coroinhaNome || "").trim().toUpperCase()
+                    );
+                    if (membro && membro.papel) {
+                        return normalizarPapelLiturgico(membro.papel);
+                    }
+                }
+                // Fallback pela função no altar caso o membro não seja encontrado na lista
+                if (escala && String(escala.funcao || "").toUpperCase() === "MESTRE") {
+                    return "Cerimoniário";
+                }
+                return "Coroinha";
+            }
+
+            /**
+             * Verifica se o usuário logado possui o mesmo perfil exigido pela vaga ou colega:
+             * - Coroinha só vê/interage com Coroinha
+             * - Cerimoniário só vê/interage com Cerimoniário
+             */
+            function usuarioTemPapelCompativelComVaga(escala, regFaltaOpcional = null) {
+                if (!usuarioLogado) return false;
+                const meuPapel = normalizarPapelLiturgico(usuarioLogado.papel);
+                const papelDaVaga = obterPapelDoTitularDaEscala(escala, regFaltaOpcional);
+
+                if (meuPapel === "Coroinha") return papelDaVaga === "Coroinha";
+                if (meuPapel === "Cerimoniário") return papelDaVaga === "Cerimoniário";
+
+                // Caso seja um perfil de Coordenação servindo na escala, respeita o papel da vaga se não for admin puro
+                return papelDaVaga === meuPapel;
+            }
+
+            /**
+             * CENÁRIO 1: Filtra estritamente a listagem de substitutos no Modal de Trocas/Substituições
+             * - Coroinha vê exclusivamente outros Coroinhas
+             * - Cerimoniário vê exclusivamente outros Cerimoniários
+             */
+            window.popularSelectSubstitutos = function () {
+                const select = document.getElementById("select-coroinha-substituto");
+                if (!select || !usuarioLogado) return;
+
+                const meuPapel = normalizarPapelLiturgico(usuarioLogado.papel);
+
+                const colegasMesmoPapel = (coroinhasDB || []).filter(c => {
+                    if (Number(c.id) === Number(usuarioLogado.id)) return false;
+                    if ((c.nome || "").toLowerCase() === "consertar") return false;
+
+                    const papelColega = normalizarPapelLiturgico(c.papel);
+                    if (meuPapel === "Coroinha") return papelColega === "Coroinha";
+                    if (meuPapel === "Cerimoniário") return papelColega === "Cerimoniário";
+                    return papelColega === meuPapel;
+                }).sort((a, b) => a.nome.localeCompare(b.nome));
+
+                if (colegasMesmoPapel.length === 0) {
+                    select.innerHTML = `<option value="" selected disabled>Nenhum outro ${meuPapel} disponível na lista</option>`;
+                    return;
+                }
+
+                select.innerHTML = `<option value="" selected disabled>Escolha outro ${meuPapel} (${colegasMesmoPapel.length} disponíveis)...</option>` +
+                    colegasMesmoPapel.map(c => `<option value="${c.id}">${c.nome} (${c.papel})</option>`).join("");
+            };
+
+            // Garante que sempre que o Modal de Troca abrir, o filtro estrito de papel seja aplicado
+            document.addEventListener("show.bs.modal", (event) => {
+                if (event.target && event.target.id === "modalTroca") {
+                    window.popularSelectSubstitutos();
+                }
+            });
+
+            // Intercepta o envio de Troca/Substituição para validar o papel antes de registrar
+            const _confirmarTrocaBaseRole = window.confirmarTrocaOuSubstituicao;
+            window.confirmarTrocaOuSubstituicao = async function (event) {
+                if (event) event.preventDefault();
+
+                const substitutoId = parseInt(document.getElementById("select-coroinha-substituto")?.value || "0", 10);
+                const substitutoObj = (coroinhasDB || []).find(c => Number(c.id) === Number(substitutoId));
+
+                if (substitutoObj && usuarioLogado) {
+                    const meuPapel = normalizarPapelLiturgico(usuarioLogado.papel);
+                    const papelSub = normalizarPapelLiturgico(substitutoObj.papel);
+
+                    if ((meuPapel === "Coroinha" || meuPapel === "Cerimoniário") && meuPapel !== papelSub) {
+                        mostrarToast(
+                            "Função Incompatível",
+                            `Como ${meuPapel}, você só pode solicitar substituição ou troca com outro ${meuPapel}.`,
+                            "warning"
+                        );
+                        return;
+                    }
+                }
+
+                if (typeof _confirmarTrocaBaseRole === "function") {
+                    return await _confirmarTrocaBaseRole(event);
+                }
+            };
+
+            // ========================================================================
+            // 1. ESTILOS DO MODAL DE FALTA E CARD CINZA
+            // ========================================================================
             function injetarEstilosFaltaUrgencia() {
-                if (document.getElementById("estilos-fluxo-falta-urgencia")) return;
+                document.getElementById("estilos-fluxo-falta-urgencia")?.remove();
                 const style = document.createElement("style");
                 style.id = "estilos-fluxo-falta-urgencia";
                 style.innerHTML = `
-                    /* Card em tonalidade cinza (estado abandonado/aguardando substituto) */
                     .escala-card.card-falta-abandonada {
-                        background-color: #EFEFEF !important;
+                        background-color: #F3F4F6 !important;
                         border: 1px dashed #9CA3AF !important;
-                        border-left: 6px solid #6B7280 !important;
+                        border-left: 5px solid #6B7280 !important;
                         color: #6B7280 !important;
                         box-shadow: none !important;
-                        transition: all 0.25s ease;
                     }
                     .escala-card.card-falta-abandonada h5,
                     .escala-card.card-falta-abandonada small,
@@ -11514,130 +11626,121 @@ MARIA FERNANDA 30/10</textarea>
                         color: #6B7280 !important;
                     }
                     .escala-card.card-falta-abandonada .badge-turno {
-                        background-color: #D1D5DB !important;
+                        background-color: #E5E7EB !important;
                         color: #374151 !important;
-                        border-color: #9CA3AF !important;
+                        border-color: #D1D5DB !important;
                     }
                     .badge-falta-abandonada {
                         background-color: #4B5563 !important;
                         color: #FFFFFF !important;
                         font-size: 0.72rem;
-                        padding: 0.3rem 0.6rem;
+                        padding: 0.28rem 0.6rem;
                         border-radius: 50rem;
                         font-weight: 700;
                         display: inline-flex;
                         align-items: center;
                         gap: 0.3rem;
                     }
-                    .atalho-troca-modal-card {
-                        background: linear-gradient(135deg, #FFFDF7 0%, #FFF5D6 100%);
-                        border: 2px solid var(--liturgical-gold, #D4AF37);
-                        border-radius: 14px;
-                        transition: transform 0.15s ease;
+                    .aviso-urgencia-destaque {
+                        background-color: #FFF8EB;
+                        border: 1px solid #FCD34D;
+                        border-left: 5px solid #D97706;
+                        border-radius: 10px;
+                        padding: 0.75rem 0.9rem;
                     }
-                    .atalho-troca-modal-card:hover {
-                        transform: translateY(-2px);
+                    .btn-acao-compacto-falta {
+                        padding: 0.48rem 0.85rem !important;
+                        font-size: 0.82rem !important;
+                        border-radius: 8px !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justify-content: space-between !important;
+                        transition: all 0.15s ease;
                     }
-                    .alerta-vaga-aberta-pulse {
-                        animation: pulseBordaVaga 2s infinite;
-                    }
-                    @keyframes pulseBordaVaga {
-                        0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.35); }
-                        70% { box-shadow: 0 0 0 8px rgba(211, 47, 47, 0); }
-                        100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); }
+                    .btn-acao-compacto-falta:hover {
+                        transform: translateY(-1px);
                     }
                 `;
                 document.head.appendChild(style);
             }
 
-            // 2. Constrói o Modal de Confirmação em 2 Etapas (Urgência + Atalho de Trocas + Justificativa Obrigatória)
+            // ========================================================================
+            // 2. MODAL DE FALTA COM AVISO DESTACADO E BOTÕES COMPACTOS
+            // ========================================================================
             function garantirModalFaltaUrgenciaNoDOM() {
-                if (document.getElementById("modalConfirmarFaltaUrgencia")) return;
+                document.getElementById("modalConfirmarFaltaUrgencia")?.remove();
 
                 const modalHTML = `
                     <div class="modal fade" id="modalConfirmarFaltaUrgencia" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                                <div class="modal-header text-white" style="background: linear-gradient(135deg, #7C1D26 0%, #4A0E14 100%);">
-                                    <div>
-                                        <span class="badge bg-warning text-dark fw-bold mb-1">
-                                            <i class="fa-solid fa-triangle-exclamation me-1"></i> AÇÃO DE URGÊNCIA • IRREVERSÍVEL
-                                        </span>
-                                        <h5 class="modal-title h6 fw-bold mb-0">
-                                            Informar Falta na Escala Litúrgica
-                                        </h5>
+                        <div class="modal-dialog modal-dialog-centered" style="max-width: 410px;">
+                            <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+                                <div class="modal-header py-2 px-3 text-white" style="background: #63141B;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-triangle-exclamation text-warning small"></i>
+                                        <h5 class="modal-title fw-bold mb-0" style="font-size: 0.95rem;">Informar Falta na Escala</h5>
                                     </div>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                    <button type="button" class="btn-close btn-close-white" style="font-size: 0.75rem;" data-bs-dismiss="modal" aria-label="Fechar"></button>
                                 </div>
 
-                                <div class="modal-body p-3 p-md-4" style="background-color: #FAF7F2;">
-                                    <!-- Resumo da Missa Selecionada -->
-                                    <div id="resumo-missa-modal-falta" class="p-2 px-3 rounded-3 bg-white border mb-3 small"></div>
+                                <div class="modal-body p-3 bg-white">
+                                    <div id="resumo-missa-modal-falta" class="p-2 px-3 rounded-3 bg-light border mb-3 small"></div>
 
-                                    <!-- ETAPA 1: Alerta de Urgência + Atalho Integrado de Trocas -->
                                     <div id="falta-modal-etapa-1">
-                                        <div class="alert alert-danger border-danger d-flex align-items-start gap-2 p-3 rounded-3 mb-3">
-                                            <i class="fa-solid fa-circle-exclamation fs-5 text-danger mt-1"></i>
-                                            <div class="small">
-                                                <strong class="d-block text-danger mb-1">Atenção: Ação para Casos de Urgência e Irreversível!</strong>
-                                                Informar falta deve ser utilizado <strong>apenas em imprevistos urgentes</strong>. Uma vez confirmada, a ação <strong>não poderá ser desfeita</strong> e sua vaga será aberta imediatamente na Escala Geral.
-                                            </div>
-                                        </div>
-
-                                        <!-- Recurso Visual: Card/Atalho Integrado para Solicitação de Substituição ou Troca -->
-                                        <div class="atalho-troca-modal-card p-3 mb-3 shadow-sm">
+                                        <div class="aviso-urgencia-destaque mb-3">
                                             <div class="d-flex align-items-center gap-2 mb-1">
-                                                <span class="badge bg-wine text-white">RECOMENDADO</span>
-                                                <strong class="small text-wine">Já tem um colega em mente?</strong>
+                                                <i class="fa-solid fa-circle-exclamation text-danger"></i>
+                                                <strong class="text-dark" style="font-size: 0.82rem;">Ação de Urgência e Irreversível!</strong>
                                             </div>
-                                            <p class="small text-dark mb-2">
-                                                O recomendado pela Coordenação é utilizar a <strong>Solicitação de Substituição ou Troca</strong> caso você já tenha alguém para indicar ou permutar de horário:
+                                            <p class="mb-0 text-dark" style="font-size: 0.78rem; line-height: 1.35;">
+                                                Use apenas em imprevistos reais (sua vaga será aberta para outros <strong id="lbl-papel-modal-falta">colegas da mesma função</strong>). Se já tiver alguém em mente, <strong>prefira solicitar substituição ou troca</strong>.
                                             </p>
-                                            <button type="button" class="btn btn-wine btn-sm w-100 fw-bold py-2 shadow-sm"
-                                                    onclick="window.irParaTrocaAPartirDoModalFalta()">
-                                                <i class="fa-solid fa-arrows-rotate me-1 text-warning"></i>
-                                                Abrir Solicitação de Substituição / Troca
-                                            </button>
                                         </div>
 
-                                        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 pt-2 border-top">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
-                                                Voltar ao Painel
+                                        <div class="d-grid gap-2">
+                                            <button type="button" class="btn btn-wine btn-acao-compacto-falta shadow-sm"
+                                                    onclick="window.irParaTrocaAPartirDoModalFalta()">
+                                                <span class="fw-bold">
+                                                    <i class="fa-solid fa-arrows-rotate text-warning me-2"></i>Solicitar Substituição ou Troca
+                                                </span>
+                                                <span class="badge bg-warning text-dark" style="font-size: 0.64rem;">Recomendado</span>
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger fw-bold"
+
+                                            <button type="button" class="btn btn-outline-danger btn-acao-compacto-falta"
                                                     onclick="window.avancarParaEtapaJustificativaFalta()">
-                                                Não tenho substituto, preciso informar falta <i class="fa-solid fa-arrow-right ms-1"></i>
+                                                <span class="fw-semibold">
+                                                    <i class="fa-solid fa-user-xmark me-2"></i>Não tenho substituto (Informar Falta)
+                                                </span>
+                                                <i class="fa-solid fa-chevron-right" style="font-size: 0.72rem;"></i>
                                             </button>
                                         </div>
                                     </div>
 
-                                    <!-- ETAPA 2: Justificativa Obrigatória + Reiteração de Irreversibilidade -->
                                     <div id="falta-modal-etapa-2" class="d-none">
-                                        <div class="alert alert-warning border-warning p-2 px-3 rounded-3 small mb-3">
-                                            <i class="fa-solid fa-lock text-danger me-1"></i>
-                                            <strong class="text-danger">Confirmação Final Irreversível:</strong>
-                                            Ao confirmar abaixo, seu card ficará desativado (cinza) até que outro coroinha ou cerimoniário assuma sua vaga na Escala Geral.
+                                        <div class="aviso-urgencia-destaque mb-2 py-2 px-3" style="border-left-color: #DC2626; background-color: #FEF2F2; border-color: #FECACA;">
+                                            <small class="text-danger fw-bold d-block" style="font-size: 0.75rem;">
+                                                <i class="fa-solid fa-lock me-1"></i>Confirmação Irreversível: Seu card ficará cinza até outro colega da sua função assumir a vaga.
+                                            </small>
                                         </div>
 
                                         <div class="mb-3">
-                                            <label for="textarea-justificativa-falta-urgente" class="form-label small fw-bold text-dark mb-1">
-                                                Motivo / Justificativa da Falta <span class="text-danger">* (Obrigatório)</span>
+                                            <label for="textarea-justificativa-falta-urgente" class="form-label small fw-bold text-dark mb-1" style="font-size: 0.8rem;">
+                                                Motivo Obrigatório da Falta <span class="text-danger">*</span>
                                             </label>
-                                            <textarea id="textarea-justificativa-falta-urgente" class="form-control form-control-sm" rows="3"
-                                                      placeholder="Descreva obrigatoriamente o motivo urgente da sua ausência nesta Santa Missa..." required></textarea>
-                                            <div id="erro-justificativa-falta" class="text-danger small fw-semibold mt-1 d-none">
-                                                <i class="fa-solid fa-circle-xmark me-1"></i>Por favor, preencha o motivo da falta antes de confirmar.
+                                            <textarea id="textarea-justificativa-falta-urgente" class="form-control form-control-sm" rows="2"
+                                                      placeholder="Descreva brevemente o motivo do imprevisto..." required></textarea>
+                                            <div id="erro-justificativa-falta" class="text-danger small fw-semibold mt-1 d-none" style="font-size: 0.75rem;">
+                                                Preencha o motivo antes de confirmar.
                                             </div>
                                         </div>
 
-                                        <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 pt-2 border-top">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        <div class="d-flex gap-2 pt-2 border-top">
+                                            <button type="button" class="btn btn-sm btn-light border flex-fill fw-semibold py-1"
                                                     onclick="window.voltarParaEtapaAlertaFalta()">
-                                                <i class="fa-solid fa-arrow-left me-1"></i> Voltar
+                                                Voltar
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-danger fw-bold px-3"
+                                            <button type="button" class="btn btn-sm btn-danger flex-fill fw-bold py-1"
                                                     onclick="window.confirmarRegistroFaltaIrreversivel()">
-                                                <i class="fa-solid fa-user-xmark me-1"></i> Confirmar Falta Irreversível
+                                                Confirmar Falta
                                             </button>
                                         </div>
                                     </div>
@@ -11650,7 +11753,9 @@ MARIA FERNANDA 30/10</textarea>
                 document.body.insertAdjacentHTML("beforeend", modalHTML);
             }
 
-            // 3. Sincroniza o estado das faltas em escalasDB e missasOutubro2026 (Folha A4 + Escala Geral)
+            // ========================================================================
+            // 3. SINCRONIZAÇÃO DE FALTAS E PAPÉIS NAS LISTAS DE ESCALA
+            // ========================================================================
             function sincronizarEstadoFaltasNasListas() {
                 const faltasSalvas = carregarFaltasStorage();
                 if (!Array.isArray(escalasDB) || faltasSalvas.length === 0) return;
@@ -11666,6 +11771,7 @@ MARIA FERNANDA 30/10</textarea>
                         esc.status = "PENDENTE";
                         esc.coroinhaId = reg.faltosoId;
                         esc.coroinhaNome = reg.faltosoNome;
+                        esc.faltosoPapel = reg.faltosoPapel || obterPapelDoTitularDaEscala(esc, reg);
                         esc.substitutoNome = null;
                         esc.detalheStatus = `Falta informada (${reg.justificativa})`;
                         esc.justificativaFalta = reg.justificativa;
@@ -11674,11 +11780,10 @@ MARIA FERNANDA 30/10</textarea>
                         esc.coroinhaId = reg.assumidoPorId;
                         esc.coroinhaNome = reg.assumidoPorNome;
                         esc.substitutoNome = null;
-                        esc.detalheStatus = `Vaga assumida por ${reg.assumidoPorNome} (no lugar de ${reg.faltosoNome})`;
+                        esc.detalheStatus = `Assumida por ${reg.assumidoPorNome} (no lugar de ${reg.faltosoNome})`;
                     }
                 });
 
-                // Reflete também em missasOutubro2026 para manter a Folha A4 sincronizada
                 if (Array.isArray(missasOutubro2026)) {
                     missasOutubro2026.forEach(missa => {
                         (missa.posicoes || []).forEach(pos => {
@@ -11695,38 +11800,40 @@ MARIA FERNANDA 30/10</textarea>
                 }
             }
 
-            // 4. Sobrescreve informarFaltaMissa(escalaId) para abrir o Modal de 2 Etapas
+            // 4. Abre o Modal de Falta
             window.informarFaltaMissa = function (escalaId) {
                 injetarEstilosFaltaUrgencia();
                 garantirModalFaltaUrgenciaNoDOM();
 
                 const esc = (escalasDB || []).find(e => Number(e.id) === Number(escalaId));
-                if (!esc) {
-                    mostrarToast("Atenção", "Escala não localizada.", "warning");
-                    return;
-                }
+                if (!esc) return;
 
                 if (esc.status === "PENDENTE") {
-                    mostrarToast("Falta Já Registrada", "Esta missa já está com vaga aberta na Escala Geral.", "info");
+                    mostrarToast("Falta Já Registrada", "Esta missa já está com vaga aberta.", "info");
                     return;
                 }
 
                 escalaIdFaltaEmAndamento = esc.id;
+                const meuPapel = normalizarPapelLiturgico(usuarioLogado?.papel || "Coroinha");
+
+                const lblPapel = document.getElementById("lbl-papel-modal-falta");
+                if (lblPapel) {
+                    lblPapel.textContent = meuPapel === "Cerimoniário" ? "Cerimoniários" : "Coroinhas";
+                }
 
                 const resumoEl = document.getElementById("resumo-missa-modal-falta");
                 if (resumoEl) {
                     resumoEl.innerHTML = `
-                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                            <span class="fw-bold text-wine"><i class="fa-regular fa-calendar-xmark me-1"></i>${formatarDataSegura(esc.data)} • ${esc.diaSemana}</span>
-                            <span class="badge bg-light text-dark border">${esc.turno} (${esc.horario})</span>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong class="text-wine">${formatarDataSegura(esc.data)} • ${esc.diaSemana}</strong>
+                            <span class="badge bg-white text-dark border">${esc.turno} (${esc.horario})</span>
                         </div>
-                        <div class="text-secondary mt-1">
-                            <strong>Celebração:</strong> ${esc.celebracao} • <strong class="text-wine">Função: ${esc.funcao}</strong>
+                        <div class="text-muted mt-1" style="font-size: 0.76rem;">
+                            ${esc.celebracao} • <strong class="text-dark">Função: ${esc.funcao} (${meuPapel})</strong>
                         </div>
                     `;
                 }
 
-                // Reseta modal para a Etapa 1
                 document.getElementById("falta-modal-etapa-1")?.classList.remove("d-none");
                 document.getElementById("falta-modal-etapa-2")?.classList.add("d-none");
                 const txtJust = document.getElementById("textarea-justificativa-falta-urgente");
@@ -11734,29 +11841,60 @@ MARIA FERNANDA 30/10</textarea>
                 document.getElementById("erro-justificativa-falta")?.classList.add("d-none");
 
                 const modalEl = document.getElementById("modalConfirmarFaltaUrgencia");
-                modalFaltaUrgenciaInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
-                modalFaltaUrgenciaInstance.show();
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
             };
 
-            // Atalho para abrir o modal de Trocas diretamente de dentro do modal de Falta
+            // 5. Transição para o Modal de Troca (já filtrando substitutos pelo papel)
             window.irParaTrocaAPartirDoModalFalta = function () {
                 const idAlvo = escalaIdFaltaEmAndamento;
-                if (modalFaltaUrgenciaInstance) {
-                    modalFaltaUrgenciaInstance.hide();
-                }
-                setTimeout(() => {
-                    if (typeof abrirModalTroca === "function") {
-                        abrirModalTroca(idAlvo);
+                const modalFaltaEl = document.getElementById("modalConfirmarFaltaUrgencia");
+
+                const abrirModalTrocaGarantido = () => {
+                    document.querySelectorAll(".modal-backdrop").forEach(b => b.remove());
+                    document.body.classList.remove("modal-open");
+                    document.body.style.removeProperty("overflow");
+                    document.body.style.removeProperty("padding-right");
+
+                    try {
+                        if (typeof abrirModalTroca === "function") {
+                            abrirModalTroca(idAlvo);
+                        }
+                    } catch (e) {}
+
+                    const esc = (escalasDB || []).find(e => Number(e.id) === Number(idAlvo));
+                    if (esc) {
+                        const inputId = document.getElementById("troca-escala-id-origem");
+                        const inputData1 = document.getElementById("input-data-1");
+                        const labelPos = document.getElementById("troca-posicao-atual-label");
+                        if (inputId) inputId.value = esc.id;
+                        if (inputData1) inputData1.value = esc.data;
+                        if (labelPos) labelPos.textContent = `Posição: ${esc.funcao} (${esc.celebracao})`;
+                        const radioTurno = document.querySelector(`input[name="horarioMissa1"][value="${esc.turno}"]`);
+                        if (radioTurno) radioTurno.checked = true;
                     }
-                }, 220);
+
+                    window.popularSelectSubstitutos();
+
+                    const modalTrocaEl = document.getElementById("modalTroca");
+                    if (modalTrocaEl) {
+                        const instTroca = bootstrap.Modal.getOrCreateInstance(modalTrocaEl);
+                        window.modalTrocaInstance = instTroca;
+                        instTroca.show();
+                    }
+                };
+
+                if (modalFaltaEl && modalFaltaEl.classList.contains("show")) {
+                    modalFaltaEl.addEventListener("hidden.bs.modal", abrirModalTrocaGarantido, { once: true });
+                    bootstrap.Modal.getOrCreateInstance(modalFaltaEl).hide();
+                } else {
+                    abrirModalTrocaGarantido();
+                }
             };
 
             window.avancarParaEtapaJustificativaFalta = function () {
                 document.getElementById("falta-modal-etapa-1")?.classList.add("d-none");
                 document.getElementById("falta-modal-etapa-2")?.classList.remove("d-none");
-                setTimeout(() => {
-                    document.getElementById("textarea-justificativa-falta-urgente")?.focus();
-                }, 100);
+                setTimeout(() => document.getElementById("textarea-justificativa-falta-urgente")?.focus(), 80);
             };
 
             window.voltarParaEtapaAlertaFalta = function () {
@@ -11764,7 +11902,7 @@ MARIA FERNANDA 30/10</textarea>
                 document.getElementById("falta-modal-etapa-1")?.classList.remove("d-none");
             };
 
-            // 5. Confirmação Final da Falta com Justificativa Obrigatória
+            // 6. Confirmação Final da Falta (Salva o papel do faltoso para filtrar visibilidade)
             window.confirmarRegistroFaltaIrreversivel = async function () {
                 const txtEl = document.getElementById("textarea-justificativa-falta-urgente");
                 const erroEl = document.getElementById("erro-justificativa-falta");
@@ -11780,17 +11918,17 @@ MARIA FERNANDA 30/10</textarea>
                 const esc = (escalasDB || []).find(e => Number(e.id) === Number(escalaIdFaltaEmAndamento));
                 if (!esc) return;
 
+                const papelDoFaltoso = normalizarPapelLiturgico(usuarioLogado?.papel || obterPapelDoTitularDaEscala(esc));
+
                 try {
                     await apiFetch(`/escalas/${esc.id}/falta`, {
                         method: "POST",
                         body: JSON.stringify({ justificativa })
                     });
-                } catch (e) {
-                    // Continua mesmo se o backend não aceitar body ou estiver reiniciando
-                }
+                } catch (e) {}
 
-                // Atualiza estado local e persistente imediatamente
                 esc.status = "PENDENTE";
+                esc.faltosoPapel = papelDoFaltoso;
                 esc.detalheStatus = `Falta informada (${justificativa})`;
                 esc.justificativaFalta = justificativa;
 
@@ -11805,6 +11943,7 @@ MARIA FERNANDA 30/10</textarea>
                     funcao: esc.funcao,
                     faltosoId: usuarioLogado.id,
                     faltosoNome: usuarioLogado.nome,
+                    faltosoPapel: papelDoFaltoso,
                     justificativa: justificativa,
                     statusFalta: "ABERTA",
                     assumidoPorId: null,
@@ -11814,26 +11953,24 @@ MARIA FERNANDA 30/10</textarea>
                 });
                 salvarFaltasStorage(listaFaltas);
 
-                if (modalFaltaUrgenciaInstance) {
-                    modalFaltaUrgenciaInstance.hide();
-                }
+                const modalEl = document.getElementById("modalConfirmarFaltaUrgencia");
+                if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
 
                 sincronizarEstadoFaltasNasListas();
                 carregarMinhasEscalas();
                 renderizarEscalaGeral();
                 renderizarFolhaResumidaA4();
-                if (typeof atualizarBadgesPendenciasAdmin === "function") {
-                    atualizarBadgesPendenciasAdmin();
-                }
+                if (typeof atualizarBadgesPendenciasAdmin === "function") atualizarBadgesPendenciasAdmin();
 
+                const pluralPapel = papelDoFaltoso === "Cerimoniário" ? "Cerimoniários" : "Coroinhas";
                 mostrarToast(
-                    "Falta Registrada e Vaga Aberta!",
-                    "Seu card ficou desativado (cinza) e a vaga já está aberta na Escala Geral para outro colega assumir.",
+                    "Falta Registrada!",
+                    `Seu card ficou em cinza e o aviso de cobertura foi disponibilizado exclusivamente para os demais ${pluralPapel}.`,
                     "warning"
                 );
             };
 
-            // 6. Aplica o estilo Cinza (Desativado) e bloqueia SOMENTE o botão "Informar Falta" no card do usuário
+            // 7. Aplica o estilo Cinza no card do faltoso
             function aplicarEstiloCinzaNosCardsComFalta() {
                 const viewDash = document.getElementById("view-dashboard");
                 if (!viewDash || !usuarioLogado) return;
@@ -11845,9 +11982,9 @@ MARIA FERNANDA 30/10</textarea>
 
                 minhasEscalasPendentes.forEach(esc => {
                     const regFalta = faltasSalvas.find(f => Number(f.escalaId) === Number(esc.id) && f.statusFalta === "ABERTA");
-                    const motivoTexto = regFalta?.justificativa || esc.justificativaFalta || "Ausência urgente registrada";
+                    const motivoTexto = regFalta?.justificativa || esc.justificativaFalta || "Ausência urgente";
+                    const papelVaga = obterPapelDoTitularDaEscala(esc, regFalta);
 
-                    // Localiza o card desta missa no Dashboard através do botão Solicitar Troca
                     const btnTroca = viewDash.querySelector(`button[onclick*="abrirModalTroca(${esc.id})"]`);
                     const cardEl = btnTroca ? btnTroca.closest(".escala-card") : null;
                     if (!cardEl) return;
@@ -11855,61 +11992,63 @@ MARIA FERNANDA 30/10</textarea>
                     cardEl.classList.remove("card-pendente", "card-confirmado", "card-troca");
                     cardEl.classList.add("card-falta-abandonada");
 
-                    // Atualiza o selo superior direito do card
                     const badgeStatus = cardEl.querySelector(".badge-status");
                     if (badgeStatus) {
                         badgeStatus.className = "badge-falta-abandonada";
-                        badgeStatus.innerHTML = `<i class="fa-solid fa-user-slash"></i> Falta Registrada (Vaga Aberta)`;
+                        badgeStatus.innerHTML = `<i class="fa-solid fa-user-slash"></i> Vaga em Aberto`;
                     }
 
-                    // Exibe a justificativa e o aviso de transição no corpo do card
                     let boxInfoFalta = cardEl.querySelector(".info-falta-abandonada-box");
                     if (!boxInfoFalta) {
                         boxInfoFalta = document.createElement("div");
                         boxInfoFalta.className = "info-falta-abandonada-box p-2 rounded-3 border bg-white bg-opacity-75 small mb-2";
                         const containerTexto = cardEl.querySelector("p.small.text-muted");
-                        if (containerTexto) {
-                            containerTexto.replaceWith(boxInfoFalta);
-                        } else {
-                            cardEl.firstElementChild?.appendChild(boxInfoFalta);
-                        }
+                        if (containerTexto) containerTexto.replaceWith(boxInfoFalta);
+                        else cardEl.firstElementChild?.appendChild(boxInfoFalta);
                     }
                     boxInfoFalta.innerHTML = `
-                        <div class="text-dark fw-semibold mb-1">
-                            <i class="fa-solid fa-comment-dots text-secondary me-1"></i>Motivo: "${motivoTexto}"
-                        </div>
-                        <div class="text-secondary" style="font-size: 0.74rem;">
-                            <i class="fa-regular fa-hourglass-half me-1"></i>Vaga aberta na Escala Geral. Este card desaparecerá assim que outro colega assumir seu lugar.
-                        </div>
+                        <div class="text-dark fw-semibold">Motivo: "${motivoTexto}"</div>
+                        <div class="text-secondary" style="font-size: 0.72rem;">Aguardando outro <strong>${papelVaga}</strong> assumir na Escala Geral.</div>
                     `;
 
-                    // Garante que SOMENTE o botão "Informar Falta" fique visível porém bloqueado/desativado
                     const rodapeBotoes = btnTroca.parentElement;
                     if (rodapeBotoes) {
                         let btnFalta = rodapeBotoes.querySelector(".btn-falta-bloqueado-card") ||
                                        rodapeBotoes.querySelector(`button[onclick*="informarFaltaMissa(${esc.id})"]`);
-
                         if (!btnFalta) {
                             btnFalta = document.createElement("button");
                             btnFalta.type = "button";
                             rodapeBotoes.insertBefore(btnFalta, btnTroca);
                         }
-
                         btnFalta.className = "btn btn-sm btn-secondary flex-fill btn-falta-bloqueado-card";
                         btnFalta.disabled = true;
                         btnFalta.removeAttribute("onclick");
-                        btnFalta.innerHTML = `<i class="fa-solid fa-ban me-1"></i> Falta Já Informada`;
+                        btnFalta.innerHTML = `<i class="fa-solid fa-ban me-1"></i> Falta Informada`;
                     }
                 });
             }
 
-            // 7. Quando outro Coroinha/Cerimoniário assume a vaga em aberto na Escala Geral
+            // 8. CENÁRIO 2: Assumir vaga na Escala Geral (Validação Estrita de Papel)
             window.assumirVagaPendente = async function (escalaId) {
                 const esc = (escalasDB || []).find(e => Number(e.id) === Number(escalaId));
                 if (!esc || !usuarioLogado) return;
 
                 if (Number(esc.coroinhaId) === Number(usuarioLogado.id)) {
-                    mostrarToast("Ação Inválida", "Você mesmo informou falta nesta vaga. Aguarde outro colega assumir.", "warning");
+                    mostrarToast("Atenção", "Você mesmo informou falta nesta vaga. Aguarde outro colega assumir.", "warning");
+                    return;
+                }
+
+                const listaFaltas = carregarFaltasStorage();
+                let regFalta = listaFaltas.find(f => Number(f.escalaId) === Number(escalaId) && f.statusFalta === "ABERTA");
+
+                // BLOQUEIO ESTRITO DE PAPEL: Coroinha só assume vaga de Coroinha; Cerimoniário só assume de Cerimoniário
+                const papelDaVaga = obterPapelDoTitularDaEscala(esc, regFalta);
+                if (!usuarioTemPapelCompativelComVaga(esc, regFalta)) {
+                    mostrarToast(
+                        "Incompatibilidade de Função",
+                        `Esta vaga pertence a um ${papelDaVaga} e só pode ser assumida por outro ${papelDaVaga}.`,
+                        "warning"
+                    );
                     return;
                 }
 
@@ -11918,13 +12057,13 @@ MARIA FERNANDA 30/10</textarea>
 
                 try {
                     await apiFetch(`/escalas/${escalaId}/assumir`, { method: "POST" });
-                } catch (e) {
-                    // Continua com atualização garantida no estado local
+                } catch (err) {
+                    if (err && err.message && err.message.includes("Incompatibilidade")) {
+                        mostrarToast("Bloqueado", err.message, "warning");
+                        return;
+                    }
                 }
 
-                // Atualiza o registro da falta para disparar a notificação ao faltoso e remover o card dele
-                const listaFaltas = carregarFaltasStorage();
-                let regFalta = listaFaltas.find(f => Number(f.escalaId) === Number(escalaId) && f.statusFalta === "ABERTA");
                 if (regFalta) {
                     regFalta.statusFalta = "ASSUMIDA";
                     regFalta.assumidoPorId = usuarioLogado.id;
@@ -11941,6 +12080,7 @@ MARIA FERNANDA 30/10</textarea>
                         funcao: esc.funcao,
                         faltosoId: faltosoIdAnterior,
                         faltosoNome: faltosoNomeAnterior,
+                        faltosoPapel: papelDaVaga,
                         justificativa: esc.justificativaFalta || "Ausência informada",
                         statusFalta: "ASSUMIDA",
                         assumidoPorId: usuarioLogado.id,
@@ -11951,29 +12091,26 @@ MARIA FERNANDA 30/10</textarea>
                 }
                 salvarFaltasStorage(listaFaltas);
 
-                // Transfere a vaga para o colega que assumiu
                 esc.coroinhaId = usuarioLogado.id;
                 esc.coroinhaNome = usuarioLogado.nome;
                 esc.status = "CONFIRMADO";
                 esc.substitutoNome = null;
-                esc.detalheStatus = `Assumida por ${usuarioLogado.nome} (cobrindo falta de ${faltosoNomeAnterior})`;
+                esc.detalheStatus = `Assumida por ${usuarioLogado.nome} (no lugar de ${faltosoNomeAnterior})`;
 
                 sincronizarEstadoFaltasNasListas();
                 carregarMinhasEscalas();
                 renderizarEscalaGeral();
                 renderizarFolhaResumidaA4();
-                if (typeof atualizarBadgesPendenciasAdmin === "function") {
-                    atualizarBadgesPendenciasAdmin();
-                }
+                if (typeof atualizarBadgesPendenciasAdmin === "function") atualizarBadgesPendenciasAdmin();
 
-                mostrarToast(
-                    "Deus lhe pague!",
-                    `Você assumiu a vaga de ${faltosoNomeAnterior} (${formatarDataSegura(esc.data)} - ${esc.turno}). O card já está no seu painel!`,
-                    "success"
-                );
+                mostrarToast("Deus lhe pague!", `Você assumiu a vaga de ${faltosoNomeAnterior}.`, "success");
             };
 
-            // 8. Exibe na Escala Geral (#view-escala-geral) o Alerta de Vagas em Aberto para outros assumirem
+            /**
+             * CENÁRIO 2: Exibe o Alerta de Vagas em Aberto SOMENTE para usuários do mesmo papel
+             * - Falta de Coroinha -> visível apenas para Coroinhas
+             * - Falta de Cerimoniário -> visível apenas para Cerimoniários
+             */
             function renderizarAlertaVagasAbertasNaEscalaGeral() {
                 const viewEscala = document.getElementById("view-escala-geral");
                 if (!viewEscala) return;
@@ -11985,17 +12122,20 @@ MARIA FERNANDA 30/10</textarea>
                     boxAlertaVagas = document.createElement("div");
                     boxAlertaVagas.id = "box-alerta-vagas-abertas-escala-geral";
                     const cabecalhoTopo = viewEscala.firstElementChild;
-                    if (cabecalhoTopo) {
-                        cabecalhoTopo.insertAdjacentElement("afterend", boxAlertaVagas);
-                    } else {
-                        viewEscala.prepend(boxAlertaVagas);
-                    }
+                    if (cabecalhoTopo) cabecalhoTopo.insertAdjacentElement("afterend", boxAlertaVagas);
+                    else viewEscala.prepend(boxAlertaVagas);
                 }
 
-                const vagasAbertas = (escalasDB || []).filter(e => e.status === "PENDENTE");
                 const faltasSalvas = carregarFaltasStorage();
 
-                // Atualiza contador de alerta no botão "Ver Escala Geral" da barra superior
+                // Filtra APENAS as vagas em aberto cujo papel coincide com o papel do usuário logado
+                const vagasCompativeisComMeuPapel = (escalasDB || []).filter(vaga => {
+                    if (vaga.status !== "PENDENTE") return false;
+                    const reg = faltasSalvas.find(f => Number(f.escalaId) === Number(vaga.id) && f.statusFalta === "ABERTA");
+                    return usuarioTemPapelCompativelComVaga(vaga, reg);
+                });
+
+                // Atualiza o badge de alerta na barra de navegação superior apenas com as vagas compatíveis
                 const btnNavEscala = document.getElementById("nav-btn-escala-geral");
                 if (btnNavEscala) {
                     let badgeVagas = document.getElementById("badge-nav-vagas-abertas");
@@ -12005,67 +12145,50 @@ MARIA FERNANDA 30/10</textarea>
                         badgeVagas.className = "badge rounded-pill bg-danger ms-1 d-none";
                         btnNavEscala.appendChild(badgeVagas);
                     }
-                    badgeVagas.textContent = `${vagasAbertas.length} vaga(s)`;
-                    badgeVagas.classList.toggle("d-none", vagasAbertas.length === 0);
+                    badgeVagas.textContent = vagasCompativeisComMeuPapel.length;
+                    badgeVagas.classList.toggle("d-none", vagasCompativeisComMeuPapel.length === 0);
                 }
 
-                if (vagasAbertas.length === 0) {
+                if (vagasCompativeisComMeuPapel.length === 0) {
                     boxAlertaVagas.innerHTML = "";
                     return;
                 }
 
-                boxAlertaVagas.innerHTML = `
-                    <div class="card border-danger shadow-sm rounded-4 mb-4 alerta-vaga-aberta-pulse" style="border-left: 6px solid #D32F2F !important; background-color: #FFF8F8;">
-                        <div class="card-body p-3 p-md-4">
-                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                                <div>
-                                    <span class="badge bg-danger fw-bold mb-1">
-                                        <i class="fa-solid fa-bell me-1"></i> ALERTA DE VAGA(S) EM ABERTO NA ESCALA GERAL
-                                    </span>
-                                    <h5 class="h6 fw-bold text-dark mb-0">
-                                        Há ${vagasAbertas.length} posição(ões) precisando de cobertura urgente
-                                    </h5>
-                                    <small class="text-muted">
-                                        Qualquer coroinha ou cerimoniário disponível pode assumir a vaga clicando no botão correspondente abaixo.
-                                    </small>
-                                </div>
-                            </div>
+                const meuPapel = normalizarPapelLiturgico(usuarioLogado?.papel || "Coroinha");
 
-                            <div class="row g-3">
-                                ${vagasAbertas.map(vaga => {
+                boxAlertaVagas.innerHTML = `
+                    <div class="card border-danger shadow-sm rounded-4 mb-4" style="border-left: 5px solid #D32F2F !important; background-color: #FFF8F8;">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                <span class="badge bg-danger">
+                                    <i class="fa-solid fa-bell me-1"></i> ${vagasCompativeisComMeuPapel.length} VAGA(S) DE ${meuPapel.toUpperCase()} EM ABERTO
+                                </span>
+                                <small class="text-muted">Visível exclusivamente para o perfil de <strong>${meuPapel}</strong></small>
+                            </div>
+                            <div class="row g-2">
+                                ${vagasCompativeisComMeuPapel.map(vaga => {
                                     const reg = faltasSalvas.find(f => Number(f.escalaId) === Number(vaga.id) && f.statusFalta === "ABERTA");
                                     const motivo = reg?.justificativa || vaga.justificativaFalta || "Imprevisto urgente";
                                     const ehMinhaFalta = usuarioLogado && Number(vaga.coroinhaId) === Number(usuarioLogado.id);
 
                                     return `
                                         <div class="col-12 col-md-6 col-lg-4">
-                                            <div class="p-3 rounded-4 bg-white border border-danger-subtle shadow-sm h-100 d-flex flex-column justify-content-between">
-                                                <div>
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <span class="badge bg-wine">${vaga.funcao}</span>
-                                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                                                            ${vaga.turno} (${vaga.horario})
-                                                        </span>
+                                            <div class="p-3 rounded-3 bg-white border d-flex flex-column justify-content-between h-100">
+                                                <div class="small mb-2">
+                                                    <div class="d-flex justify-content-between fw-bold text-dark">
+                                                        <span>${formatarDataSegura(vaga.data)} (${vaga.turno})</span>
+                                                        <span class="text-wine">${vaga.funcao}</span>
                                                     </div>
-                                                    <h6 class="fw-bold text-dark mb-0">${formatarDataSegura(vaga.data)} • ${vaga.diaSemana}</h6>
-                                                    <small class="text-secondary d-block mb-2">${vaga.celebracao}</small>
-                                                    <div class="p-2 rounded-3 bg-light border small mb-3">
-                                                        <div><strong>Ausente:</strong> ${vaga.coroinhaNome}</div>
-                                                        <div class="text-muted fst-italic"><strong>Motivo:</strong> "${motivo}"</div>
-                                                    </div>
+                                                    <div class="text-muted">${vaga.celebracao}</div>
+                                                    <div class="mt-1 text-secondary">Ausente: <strong>${vaga.coroinhaNome}</strong> <em>("${motivo}")</em></div>
                                                 </div>
-                                                <div>
-                                                    ${ehMinhaFalta ? `
-                                                        <button type="button" class="btn btn-sm btn-secondary w-100" disabled>
-                                                            <i class="fa-regular fa-clock me-1"></i> Sua vaga (Aguardando colega assumir)
-                                                        </button>
-                                                    ` : `
-                                                        <button type="button" class="btn btn-sm btn-success w-100 fw-bold py-2 shadow-sm"
-                                                                onclick="window.assumirVagaPendente(${vaga.id})">
-                                                            <i class="fa-solid fa-hand-holding-heart me-1"></i> Assumir Esta Vaga Agora
-                                                        </button>
-                                                    `}
-                                                </div>
+                                                ${ehMinhaFalta ? `
+                                                    <button type="button" class="btn btn-sm btn-secondary w-100" disabled>Aguardando outro ${meuPapel} assumir</button>
+                                                ` : `
+                                                    <button type="button" class="btn btn-sm btn-success w-100 fw-bold" onclick="window.assumirVagaPendente(${vaga.id})">
+                                                        <i class="fa-solid fa-check me-1"></i> Assumir Vaga (${meuPapel})
+                                                    </button>
+                                                `}
                                             </div>
                                         </div>
                                     `;
@@ -12076,24 +12199,62 @@ MARIA FERNANDA 30/10</textarea>
                 `;
             }
 
-            // 9. Exibe notificação ao usuário faltoso informando QUEM assumiu o seu lugar
+            /**
+             * Oculta na tabela da Escala Geral (#tbody-escala-geral) o botão "Assumir Vaga" e o alerta
+             * quando a falta pertencer a outro papel diferente do usuário logado.
+             */
+            function filtrarBotoesCoberturaNaTabelaEscalaGeral() {
+                const tbody = document.getElementById("tbody-escala-geral");
+                if (!tbody || !usuarioLogado) return;
+
+                const faltasSalvas = carregarFaltasStorage();
+                const botoesAssumir = tbody.querySelectorAll('button[onclick*="assumirVagaPendente("]');
+
+                botoesAssumir.forEach(btn => {
+                    const match = (btn.getAttribute("onclick") || "").match(/assumirVagaPendente\((\d+)\)/);
+                    if (!match) return;
+
+                    const escalaId = parseInt(match[1], 10);
+                    const esc = (escalasDB || []).find(e => Number(e.id) === escalaId);
+                    if (!esc) return;
+
+                    const reg = faltasSalvas.find(f => Number(f.escalaId) === escalaId && f.statusFalta === "ABERTA");
+
+                    // Se o usuário logado NÃO tiver o mesmo papel do faltoso, oculta o aviso/botão de cobertura para ele
+                    if (!usuarioTemPapelCompativelComVaga(esc, reg)) {
+                        const tr = btn.closest("tr");
+                        if (tr) {
+                            tr.classList.remove("row-pendente");
+                            const badgePendente = tr.querySelector(".status-pendente");
+                            if (badgePendente) {
+                                badgePendente.className = "badge bg-light text-secondary border";
+                                badgePendente.innerHTML = `<i class="fa-solid fa-lock me-1"></i>Vaga p/ ${obterPapelDoTitularDaEscala(esc, reg)}`;
+                            }
+                        }
+                        btn.replaceWith(document.createTextNode("—"));
+                    } else if (Number(esc.coroinhaId) === Number(usuarioLogado.id)) {
+                        btn.disabled = true;
+                        btn.className = "btn btn-sm btn-secondary";
+                        btn.innerHTML = "Sua Vaga";
+                    }
+                });
+            }
+
             function renderizarNotificacoesDeVagaAssumidaAoFaltoso() {
                 const viewDash = document.getElementById("view-dashboard");
                 if (!viewDash || !usuarioLogado) return;
 
-                let boxNotifFaltoso = document.getElementById("box-notificacao-vaga-assumida-faltoso");
-                if (!boxNotifFaltoso) {
-                    boxNotifFaltoso = document.createElement("div");
-                    boxNotifFaltoso.id = "box-notificacao-vaga-assumida-faltoso";
+                let boxNotif = document.getElementById("box-notificacao-vaga-assumida-faltoso");
+                if (!boxNotif) {
+                    boxNotif = document.createElement("div");
+                    boxNotif.id = "box-notificacao-vaga-assumida-faltoso";
                     const primeiroFilho = viewDash.firstElementChild;
-                    if (primeiroFilho) primeiroFilho.insertAdjacentElement("afterend", boxNotifFaltoso);
-                    else viewDash.prepend(boxNotifFaltoso);
+                    if (primeiroFilho) primeiroFilho.insertAdjacentElement("afterend", boxNotif);
+                    else viewDash.prepend(boxNotif);
                 }
 
                 const nomeLogado = (usuarioLogado.nome || "").trim().toUpperCase();
-                const faltasSalvas = carregarFaltasStorage();
-
-                const minhasFaltasAssumidas = faltasSalvas.filter(
+                const minhasFaltasAssumidas = carregarFaltasStorage().filter(
                     f => f.statusFalta === "ASSUMIDA" &&
                          !f.notificadoFaltoso &&
                          (Number(f.faltosoId) === Number(usuarioLogado.id) ||
@@ -12101,62 +12262,44 @@ MARIA FERNANDA 30/10</textarea>
                 );
 
                 if (minhasFaltasAssumidas.length === 0) {
-                    boxNotifFaltoso.innerHTML = "";
+                    boxNotif.innerHTML = "";
                     return;
                 }
 
-                boxNotifFaltoso.innerHTML = minhasFaltasAssumidas.map(f => `
-                    <div class="alert alert-success border-success shadow-sm rounded-4 p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3"
-                         style="border-left: 6px solid #198754 !important; background-color: #F2FBF6;">
-                        <div class="d-flex align-items-start gap-3">
-                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center flex-shrink-0 mt-1"
-                                 style="width: 38px; height: 38px;">
-                                <i class="fa-solid fa-user-check"></i>
-                            </div>
-                            <div>
-                                <span class="badge bg-success mb-1">VAGA COBERTA NA ESCALA</span>
-                                <h6 class="fw-bold text-dark mb-1">
-                                    ${f.assumidoPorNome} assumiu o seu lugar na Santa Missa!
-                                </h6>
-                                <p class="small text-secondary mb-0">
-                                    A vaga em aberto do dia <strong>${formatarDataSegura(f.data)} (${f.turno} - ${f.horario})</strong> na função de <strong>${f.funcao}</strong> foi assumida por <strong>${f.assumidoPorNome}</strong> e o card cinza foi removido da sua lista.
-                                </p>
-                            </div>
+                boxNotif.innerHTML = minhasFaltasAssumidas.map(f => `
+                    <div class="alert alert-success border-success shadow-sm rounded-4 p-3 mb-3 d-flex align-items-center justify-content-between gap-2">
+                        <div class="small">
+                            <strong class="text-success d-block"><i class="fa-solid fa-circle-check me-1"></i>Vaga Coberta na Escala!</strong>
+                            <strong>${f.assumidoPorNome}</strong> assumiu o seu lugar na missa de <strong>${formatarDataSegura(f.data)} (${f.turno})</strong> na função <strong>${f.funcao}</strong>.
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-success fw-bold px-3"
-                                onclick="window.dispensarNotificacaoVagaAssumida(${f.escalaId})">
-                            <i class="fa-solid fa-check me-1"></i> Ciente
-                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success fw-bold"
+                                onclick="window.dispensarNotificacaoVagaAssumida(${f.escalaId})">OK</button>
                     </div>
                 `).join("");
             }
 
             window.dispensarNotificacaoVagaAssumida = function (escalaId) {
                 const lista = carregarFaltasStorage();
-                lista.forEach(f => {
-                    if (Number(f.escalaId) === Number(escalaId)) {
-                        f.notificadoFaltoso = true;
-                    }
-                });
+                lista.forEach(f => { if (Number(f.escalaId) === Number(escalaId)) f.notificadoFaltoso = true; });
                 salvarFaltasStorage(lista);
                 renderizarNotificacoesDeVagaAssumidaAoFaltoso();
             };
 
-            // 10. Conecta os ganchos às funções nativas de renderização do Dashboard e Escala Geral
-            const _carregarMinhasEscalasAnterior = carregarMinhasEscalas;
+            const _carregarMinhasEscalasAnt = carregarMinhasEscalas;
             carregarMinhasEscalas = function () {
                 sincronizarEstadoFaltasNasListas();
-                _carregarMinhasEscalasAnterior();
+                _carregarMinhasEscalasAnt();
                 aplicarEstiloCinzaNosCardsComFalta();
                 renderizarNotificacoesDeVagaAssumidaAoFaltoso();
                 renderizarAlertaVagasAbertasNaEscalaGeral();
             };
 
-            const _renderizarEscalaGeralAnterior = renderizarEscalaGeral;
+            const _renderizarEscalaGeralAnt = renderizarEscalaGeral;
             renderizarEscalaGeral = function () {
                 sincronizarEstadoFaltasNasListas();
-                _renderizarEscalaGeralAnterior();
+                _renderizarEscalaGeralAnt();
                 renderizarAlertaVagasAbertasNaEscalaGeral();
+                filtrarBotoesCoberturaNaTabelaEscalaGeral();
             };
 
             window.addEventListener("DOMContentLoaded", () => {
@@ -12164,11 +12307,13 @@ MARIA FERNANDA 30/10</textarea>
                 garantirModalFaltaUrgenciaNoDOM();
                 setTimeout(() => {
                     sincronizarEstadoFaltasNasListas();
+                    window.popularSelectSubstitutos();
                     carregarMinhasEscalas();
                     renderizarEscalaGeral();
                 }, 400);
             });
         })();
+       
     </script>
 </body>
 </html>  

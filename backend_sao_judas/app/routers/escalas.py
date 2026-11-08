@@ -137,31 +137,33 @@ def obter_estrutura_folha_a4(db: Session = Depends(get_db)):
     )
     resposta = []
     for m in missas:
-        resposta.append({
-            "id": m.id,
-            "codigo": m.codigo,
-            "colunaA4": m.coluna_a4,
-            "grupoFds": m.grupo_fds,
-            "data": m.data.isoformat(),
-            "dataCurta": m.data_curta or m.data.strftime("%d/%m/%y"),
-            "diaSemana": m.dia_semana,
-            "tituloLiturgico": m.titulo_liturgico,
-            "subtituloHorario": m.subtitulo_horario,
-            "turno": m.turno,
-            "horario": m.horario,
-            "posicoes": [
-                {
-                    "idEscala": p.id,
-                    "funcao": p.funcao,
-                    "coroinhaId": p.coroinha_id,
-                    "coroinhaNome": p.coroinha.nome if p.coroinha else "consertar",
-                    "status": p.status,
-                    "substitutoNome": p.substituto_nome,
-                    "detalheStatus": p.detalhe_status,
-                }
-                for p in m.posicoes
-            ],
-        })
+        resposta.append(
+            {
+                "id": m.id,
+                "codigo": m.codigo,
+                "colunaA4": m.coluna_a4,
+                "grupoFds": m.grupo_fds,
+                "data": m.data.isoformat(),
+                "dataCurta": m.data_curta or m.data.strftime("%d/%m/%y"),
+                "diaSemana": m.dia_semana,
+                "tituloLiturgico": m.titulo_liturgico,
+                "subtituloHorario": m.subtitulo_horario,
+                "turno": m.turno,
+                "horario": m.horario,
+                "posicoes": [
+                    {
+                        "idEscala": p.id,
+                        "funcao": p.funcao,
+                        "coroinhaId": p.coroinha_id,
+                        "coroinhaNome": p.coroinha.nome if p.coroinha else "consertar",
+                        "status": p.status,
+                        "substitutoNome": p.substituto_nome,
+                        "detalheStatus": p.detalhe_status,
+                    }
+                    for p in m.posicoes
+                ],
+            }
+        )
     return resposta
 
 
@@ -176,7 +178,10 @@ def listar_minhas_escalas(
         .options(joinedload(Escala.missa), joinedload(Escala.coroinha))
         .filter(
             (Escala.coroinha_id == usuario_atual.id)
-            | ((Escala.status == "TROCA") & (Escala.substituto_nome.ilike(usuario_atual.nome)))
+            | (
+                (Escala.status == "TROCA")
+                & (Escala.substituto_nome.ilike(usuario_atual.nome))
+            )
         )
         .order_by(Missa.data.asc())
         .all()
@@ -208,7 +213,9 @@ def salvar_lote_missas_revisadas(
     for item in payload.missas:
         missa_existente = db.query(Missa).filter(Missa.codigo == item.codigo).first()
         if missa_existente:
-            db.query(Escala).filter(Escala.missa_id == missa_existente.id).delete(synchronize_session=False)
+            db.query(Escala).filter(Escala.missa_id == missa_existente.id).delete(
+                synchronize_session=False
+            )
             db.delete(missa_existente)
             db.flush()
 
@@ -229,17 +236,22 @@ def salvar_lote_missas_revisadas(
 
         for pos in item.posicoes:
             id_escolhido = pos.coroinha_id
-            if id_escolhido not in ids_usuarios_validos or (pos.coroinha_nome or "").lower() == "consertar":
+            if (
+                id_escolhido not in ids_usuarios_validos
+                or (pos.coroinha_nome or "").lower() == "consertar"
+            ):
                 id_escolhido = usuario_consertar.id
 
-            eh_consertar = (id_escolhido == usuario_consertar.id)
+            eh_consertar = id_escolhido == usuario_consertar.id
             db.add(
                 Escala(
                     missa_id=nova_missa.id,
                     funcao=pos.funcao.upper().strip(),
                     coroinha_id=id_escolhido,
                     status="PENDENTE" if eh_consertar else "CONFIRMADO",
-                    detalhe_status="Vaga sem disponível (consertar)" if eh_consertar else "Presença confirmada",
+                    detalhe_status="Vaga sem disponível (consertar)"
+                    if eh_consertar
+                    else "Presença confirmada",
                 )
             )
         criadas += 1
@@ -273,7 +285,9 @@ def alterar_titular_escala_admin(
     escala.status = "PENDENTE" if novo_coroinha.nome == "consertar" else "CONFIRMADO"
     escala.substituto_nome = None
     escala.detalhe_status = (
-        "Vaga sem disponível (consertar)" if novo_coroinha.nome == "consertar" else "Presença confirmada"
+        "Vaga sem disponível (consertar)"
+        if novo_coroinha.nome == "consertar"
+        else "Presença confirmada"
     )
     db.commit()
     db.refresh(escala)
@@ -298,12 +312,20 @@ def informar_falta_escala(
     if not escala:
         raise HTTPException(status_code=404, detail="Escala não encontrada.")
 
-    motivo = (payload.justificativa if payload and payload.justificativa else "Imprevisto de urgência").strip()
+    motivo = (
+        payload.justificativa
+        if payload and payload.justificativa
+        else "Imprevisto de urgência"
+    ).strip()
     escala.status = "PENDENTE"
     escala.detalhe_status = f"Falta informada ({motivo})"
     db.commit()
     db.refresh(escala)
-    return {"mensagem": "Falta registrada e vaga aberta na escala geral.", "id": escala.id, "status": escala.status}
+    return {
+        "mensagem": "Falta registrada e vaga aberta na escala geral.",
+        "id": escala.id,
+        "status": escala.status,
+    }
 
 
 @router.post("/{id}/assumir")
@@ -316,11 +338,29 @@ def assumir_vaga_pendente_escala(
     if not escala:
         raise HTTPException(status_code=404, detail="Escala não encontrada.")
 
+    # REGRA DE NEGÓCIO: Valida compatibilidade estrita de papéis na cobertura de falta
+    if escala.coroinha:
+        papel_faltoso = (escala.coroinha.papel or "").strip()
+        papel_atual = (usuario_atual.papel or "").strip()
+        if (
+            papel_faltoso in ["Coroinha", "Cerimoniário"]
+            and papel_faltoso != papel_atual
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"Incompatibilidade de função: Esta vaga pertence a um '{papel_faltoso}' "
+                    f"e só pode ser assumida por outro '{papel_faltoso}'."
+                ),
+            )
+
     nome_faltoso = escala.coroinha.nome if escala.coroinha else "colega"
     escala.coroinha_id = usuario_atual.id
     escala.status = "CONFIRMADO"
     escala.substituto_nome = None
-    escala.detalhe_status = f"Assumida por {usuario_atual.nome} (no lugar de {nome_faltoso})"
+    escala.detalhe_status = (
+        f"Assumida por {usuario_atual.nome} (no lugar de {nome_faltoso})"
+    )
     db.commit()
     db.refresh(escala)
     return {
@@ -329,6 +369,7 @@ def assumir_vaga_pendente_escala(
         "assumidoPorNome": usuario_atual.nome,
         "faltosoNome": nome_faltoso,
     }
+
 
 @router.put("/{id}/substituto", response_model=EscalaFlatResponse)
 def designar_substituto_admin(
@@ -347,7 +388,9 @@ def designar_substituto_admin(
 
     substituto = db.query(Usuario).filter(Usuario.id == payload.substituto_id).first()
     if not substituto:
-        raise HTTPException(status_code=404, detail="Coroinha substituto não encontrado.")
+        raise HTTPException(
+            status_code=404, detail="Coroinha substituto não encontrado."
+        )
 
     escala.status = "TROCA"
     escala.substituto_nome = substituto.nome

@@ -43,6 +43,32 @@ def calcular_passou_uma_hora(criado_em) -> bool:
     return diferenca_segundos >= 3600
 
 
+def normalizar_papel(papel_bruto: Optional[str]) -> str:
+    p = str(papel_bruto or "").strip()
+    if p == "Coroinha":
+        return "Coroinha"
+    if p == "Cerimoniário":
+        return "Cerimoniário"
+    return p
+
+
+def validar_mesmo_papel_liturgico(solicitante: Usuario, substituto: Usuario):
+    """
+    Regra Estrita: Coroinha só troca com Coroinha e Cerimoniário só com Cerimoniário.
+    """
+    papel_sol = normalizar_papel(solicitante.papel)
+    papel_sub = normalizar_papel(substituto.papel)
+
+    if papel_sol in ["Coroinha", "Cerimoniário"] and papel_sol != papel_sub:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Operação bloqueada: Seu perfil é '{papel_sol}' e você só pode "
+                f"solicitar troca ou substituição com outro '{papel_sol}'."
+            ),
+        )
+
+
 def serializar_troca(t: TrocaSubstituicao) -> dict:
     data1_str = t.data_1.isoformat() if hasattr(t.data_1, "isoformat") else str(t.data_1 or "")
     data2_str = (
@@ -156,7 +182,7 @@ def cancelar_outras_solicitacoes_da_mesma_missa(db: Session, troca_aceita: Troca
             outra.comentario = f"Cancelada automaticamente pois {nome_quem_aceitou} já aceitou assumir esta missa."
 
 
-@router.get("/")
+@router.get("/", response_model=None)
 def listar_trocas(db: Session = Depends(get_db)):
     trocas = (
         db.query(TrocaSubstituicao)
@@ -170,7 +196,7 @@ def listar_trocas(db: Session = Depends(get_db)):
     return [serializar_troca(t) for t in trocas]
 
 
-@router.post("/", status_code=201)
+@router.post("/", status_code=201, response_model=None)
 def criar_solicitacao_troca(payload: TrocaInputSimples, db: Session = Depends(get_db)):
     solicitante = None
     if payload.solicitante_id:
@@ -182,11 +208,14 @@ def criar_solicitacao_troca(payload: TrocaInputSimples, db: Session = Depends(ge
             solicitante = db.query(Usuario).filter(Usuario.id == esc.coroinha_id).first()
 
     if not solicitante:
-        solicitante = db.query(Usuario).filter(Usuario.nome != "consertar").first()
+        raise HTTPException(status_code=400, detail="Solicitante não identificado.")
 
     substituto = db.query(Usuario).filter(Usuario.id == payload.substituto_id).first()
     if not substituto:
         raise HTTPException(status_code=404, detail="Colega selecionado não encontrado.")
+
+    # Valida restrição estrita de papéis
+    validar_mesmo_papel_liturgico(solicitante, substituto)
 
     data_1_conv = converter_data_iso(payload.data_1)
 
@@ -234,7 +263,7 @@ def criar_solicitacao_troca(payload: TrocaInputSimples, db: Session = Depends(ge
     return serializar_troca(salva)
 
 
-@router.post("/{id}/aceitar")
+@router.post("/{id}/aceitar", response_model=None)
 def colega_aceitar_solicitacao(id: int, db: Session = Depends(get_db)):
     troca = (
         db.query(TrocaSubstituicao)
@@ -254,6 +283,9 @@ def colega_aceitar_solicitacao(id: int, db: Session = Depends(get_db)):
             detail="Outro colega já aceitou esta solicitação antes de você.",
         )
 
+    if troca.solicitante and troca.substituto:
+        validar_mesmo_papel_liturgico(troca.solicitante, troca.substituto)
+
     troca.status = "APROVADO"
     efetivar_transferencia_nas_escalas(db, troca)
     cancelar_outras_solicitacoes_da_mesma_missa(db, troca)
@@ -263,7 +295,7 @@ def colega_aceitar_solicitacao(id: int, db: Session = Depends(get_db)):
     return serializar_troca(troca)
 
 
-@router.post("/{id}/recusar")
+@router.post("/{id}/recusar", response_model=None)
 def colega_recusar_solicitacao(id: int, db: Session = Depends(get_db)):
     troca = (
         db.query(TrocaSubstituicao)
@@ -283,11 +315,11 @@ def colega_recusar_solicitacao(id: int, db: Session = Depends(get_db)):
     return serializar_troca(troca)
 
 
-@router.post("/{id}/aprovar")
+@router.post("/{id}/aprovar", response_model=None)
 def aprovar_troca_admin(id: int, db: Session = Depends(get_db)):
     return colega_aceitar_solicitacao(id, db)
 
 
-@router.post("/{id}/reprovar")
+@router.post("/{id}/reprovar", response_model=None)
 def reprovar_troca_admin(id: int, db: Session = Depends(get_db)):
     return colega_recusar_solicitacao(id, db)
