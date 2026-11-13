@@ -9,6 +9,8 @@ from app.models import Escala, Missa, TrocaSubstituicao, Usuario
 
 router = APIRouter(prefix="/api/trocas", tags=["Trocas e Substituições"])
 
+STATUS_ATIVOS_PENDENTES = {"PENDENTE", "AGUARDANDO_COLEGA"}
+
 
 class TrocaInputSimples(BaseModel):
     tipo: str = "Substituição"
@@ -39,8 +41,7 @@ def calcular_passou_uma_hora(criado_em) -> bool:
     if not criado_em or not hasattr(criado_em, "timestamp"):
         return False
     agora = datetime.now(criado_em.tzinfo) if getattr(criado_em, "tzinfo", None) else datetime.now()
-    diferenca_segundos = abs((agora - criado_em).total_seconds())
-    return diferenca_segundos >= 3600
+    return abs((agora - criado_em).total_seconds()) >= 3600
 
 
 def normalizar_papel(papel_bruto: Optional[str]) -> str:
@@ -51,31 +52,23 @@ def normalizar_papel(papel_bruto: Optional[str]) -> str:
         return "Coroinha"
     if p == "Coordenação":
         return "Coordenação"
-    return p
+    return p or "Coroinha"
 
 
 def validar_mesmo_papel_liturgico(solicitante: Usuario, substituto: Usuario):
-    """
-    - 'Coordenação / Cerimoniário' e 'Cerimoniário' trocam entre si normalmente.
-    - 'Coroinha' só troca com 'Coroinha'.
-    - 'Coordenação' exclusivo (Veriane e Roberta) não participa de escalas de altar.
-    """
     papel_sol = normalizar_papel(solicitante.papel)
     papel_sub = normalizar_papel(substituto.papel)
 
     if papel_sol == "Coordenação" or papel_sub == "Coordenação":
         raise HTTPException(
             status_code=403,
-            detail="Perfis exclusivos de Coordenação não participam de trocas ou escalas de altar.",
+            detail="Perfis exclusivos de Coordenação não participam de trocas de altar.",
         )
 
     if papel_sol in ["Coroinha", "Cerimoniário"] and papel_sol != papel_sub:
         raise HTTPException(
             status_code=403,
-            detail=(
-                f"Operação bloqueada: Seu perfil litúrgico é '{papel_sol}' e você só pode "
-                f"solicitar troca ou substituição com outro '{papel_sol}'."
-            ),
+            detail=f"Operação não permitida entre funções diferentes ({papel_sol} e {papel_sub}).",
         )
 
 
@@ -89,31 +82,48 @@ def serializar_troca(t: TrocaSubstituicao) -> dict:
     criado_str = (
         t.criado_em.strftime("%d/%m/%Y às %H:%M")
         if hasattr(t.criado_em, "strftime")
-        else "Agora mesmo"
+        else "Recente"
     )
     criado_ts = (
         int(t.criado_em.timestamp() * 1000)
         if hasattr(t.criado_em, "timestamp")
         else int(datetime.now().timestamp() * 1000)
     )
-    status_atual = t.status or "AGUARDANDO_COLEGA"
-    atrasado_1h = (status_atual == "AGUARDANDO_COLEGA") and calcular_passou_uma_hora(t.criado_em)
+
+    # Garante que estados vazios ou em espera nunca caiam como reprovados
+    status_banco = (t.status or "AGUARDANDO_COLEGA").strip().upper()
+    if status_banco not in {"PENDENTE", "AGUARDANDO_COLEGA", "APROVADO", "REPROVADO", "CANCELADO_POR_ACEITE"}:
+        status_banco = "AGUARDANDO_COLEGA"
+
+    atrasado_1h = (status_banco in STATUS_ATIVOS_PENDENTES) and calcular_passou_uma_hora(t.criado_em)
+
+    nome_sol = t.solicitante.nome if t.solicitante else ""
+    nome_sub = t.substituto.nome if t.substituto else ""
+    papel_sol = normalizar_papel(t.solicitante.papel if t.solicitante else "Coroinha")
+    papel_sub = normalizar_papel(t.substituto.papel if t.substituto else "Coroinha")
+    comentario_limpo = (t.comentario or "").strip()
 
     return {
         "id": t.id,
         "tipo": t.tipo or "Substituição",
         "solicitanteId": t.solicitante_id,
-        "solicitanteNome": t.solicitante.nome if t.solicitante else "",
+        "solicitanteNome": nome_sol,
+        "solicitante": nome_sol,
+        "solicitantePapel": papel_sol,
         "substitutoId": t.substituto_id,
-        "substitutoNome": t.substituto.nome if t.substituto else "",
+        "substitutoNome": nome_sub,
+        "substituto": nome_sub,
+        "substitutoPapel": papel_sub,
         "escalaOrigemId": t.escala_origem_id,
         "data1": data1_str,
         "turno1": t.turno_1 or "Manhã",
         "data2": data2_str,
         "turno2": t.turno_2,
-        "comentario": t.comentario or "",
-        "status": status_atual,
+        "comentario": comentario_limpo,
+        "justificativa": comentario_limpo,
+        "status": status_banco,
         "criadoEm": criado_str,
+        "dataSolicitacao": criado_str,
         "criadoTimestamp": criado_ts,
         "atrasadoUmaHora": atrasado_1h,
     }
@@ -162,7 +172,7 @@ def efetivar_transferencia_nas_escalas(db: Session, troca: TrocaSubstituicao):
         escala_2.coroinha_id = troca.solicitante_id
         escala_2.status = "CONFIRMADO"
         escala_2.substituto_nome = None
-        escala_2.detalhe_status = f"Nova missa assumida em troca com {nome_substituto}"
+        escala_2.detalhe_status = f"Permuta com {nome_substituto}"
 
 
 def cancelar_outras_solicitacoes_da_mesma_missa(db: Session, troca_aceita: TrocaSubstituicao):
@@ -171,7 +181,7 @@ def cancelar_outras_solicitacoes_da_mesma_missa(db: Session, troca_aceita: Troca
         .filter(
             TrocaSubstituicao.id != troca_aceita.id,
             TrocaSubstituicao.solicitante_id == troca_aceita.solicitante_id,
-            TrocaSubstituicao.status == "AGUARDANDO_COLEGA",
+            TrocaSubstituicao.status.in_(["AGUARDANDO_COLEGA", "PENDENTE"]),
         )
         .all()
     )
@@ -189,7 +199,7 @@ def cancelar_outras_solicitacoes_da_mesma_missa(db: Session, troca_aceita: Troca
         )
         if mesma_escala_id or mesma_data_turno:
             outra.status = "CANCELADO_POR_ACEITE"
-            outra.comentario = f"Cancelada automaticamente pois {nome_quem_aceitou} já aceitou assumir esta missa."
+            outra.comentario = f"Cancelada pois {nome_quem_aceitou} assumiu esta escala."
 
 
 @router.get("/", response_model=None)
@@ -222,9 +232,8 @@ def criar_solicitacao_troca(payload: TrocaInputSimples, db: Session = Depends(ge
 
     substituto = db.query(Usuario).filter(Usuario.id == payload.substituto_id).first()
     if not substituto:
-        raise HTTPException(status_code=404, detail="Colega selecionado não encontrado.")
+        raise HTTPException(status_code=404, detail="Substituto não encontrado.")
 
-    # Valida restrição estrita de papéis
     validar_mesmo_papel_liturgico(solicitante, substituto)
 
     data_1_conv = converter_data_iso(payload.data_1)
@@ -236,15 +245,17 @@ def criar_solicitacao_troca(payload: TrocaInputSimples, db: Session = Depends(ge
             TrocaSubstituicao.substituto_id == substituto.id,
             TrocaSubstituicao.data_1 == data_1_conv,
             TrocaSubstituicao.turno_1 == payload.turno_1,
-            TrocaSubstituicao.status == "AGUARDANDO_COLEGA",
+            TrocaSubstituicao.status.in_(["AGUARDANDO_COLEGA", "PENDENTE"]),
         )
         .first()
     )
     if duplicada_mesma_pessoa:
         raise HTTPException(
             status_code=400,
-            detail=f"Você já enviou uma solicitação para {substituto.nome} nesta missa. Escolha outro colega!",
+            detail=f"Já existe uma solicitação pendente para {substituto.nome} nesta missa.",
         )
+
+    comentario_limpo = (payload.comentario or "").strip()
 
     nova_troca = TrocaSubstituicao(
         tipo=payload.tipo,
@@ -255,7 +266,7 @@ def criar_solicitacao_troca(payload: TrocaInputSimples, db: Session = Depends(ge
         turno_1=payload.turno_1,
         data_2=converter_data_iso(payload.data_2) if payload.tipo == "Troca" else None,
         turno_2=payload.turno_2 if payload.tipo == "Troca" else None,
-        comentario=payload.comentario or "Solicitação enviada pelo sistema.",
+        comentario=comentario_limpo,
         status="AGUARDANDO_COLEGA",
     )
     db.add(nova_troca)
@@ -288,10 +299,7 @@ def colega_aceitar_solicitacao(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Solicitação não encontrada.")
 
     if troca.status == "CANCELADO_POR_ACEITE":
-        raise HTTPException(
-            status_code=400,
-            detail="Outro colega já aceitou esta solicitação antes de você.",
-        )
+        raise HTTPException(status_code=400, detail="Outro colega já assumiu esta escala.")
 
     if troca.solicitante and troca.substituto:
         validar_mesmo_papel_liturgico(troca.solicitante, troca.substituto)

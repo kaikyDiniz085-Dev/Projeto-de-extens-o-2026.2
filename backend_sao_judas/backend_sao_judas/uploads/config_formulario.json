@@ -1,0 +1,237 @@
+{
+  "mesAnoTitulo": "NOVEMBRO/2026",
+  "mesAnoCurto": "Nov/26",
+  "prazoLimite": "28 de Outubro de 2026",
+  "avisoTitulo": "Santa missa aos fiéis defuntos:",
+  "avisoTexto": "Será dia 02/11. Ainda não foi informado o horário da Santa missa, mas no decorrer da semana ou na própria escala será informado o horário oficial.",
+  "avisos": [
+    {
+      "id": 1,
+      "titulo": "Santa missa aos fiéis defuntos:",
+      "texto": "Será dia 02/11. Ainda não foi informado o horário da Santa missa, mas no decorrer da semana ou na própria escala será informado o horário oficial."
+    }
+  ],
+  "perguntasExtras": [
+    {
+      "id": 1793544925027,
+      "titulo": "pode ir para a reunião",
+      "tipo": "UNICA_RESPOSTA",
+      "obrigatoria": true,
+      "ajuda": "",
+      "opcoes": [
+        "Sim",
+        "não"
+      ]
+    },
+    {
+      "id": 1793545010949,
+      "titulo": "em que horário poderá?",
+      "tipo": "HORARIO",
+      "obrigatoria": true,
+      "ajuda": "",
+      "opcoes": []
+    },
+    {
+      "id": 1793545050049,
+      "titulo": "qual data ?",
+      "tipo": "DATA",
+      "obrigatoria": true,
+      "ajuda": "",
+      "opcoes": []
+    }
+  ],
+  "missas": [
+    {
+      "id": 1793543130823,
+      "categoria": "DOMINGO",
+      "data": "2026-11-01",
+      "ordemLabel": "1º Domingo",
+      "turno": "Manhã",
+      "horario": "07:00H",
+      "liturgia": "todos os santos"
+    },
+    {
+      "id": 1793543143617,
+      "categoria": "DOMINGO",
+      "data": "2026-11-01",
+      "ordemLabel": "1º Domingo",
+      "turno": "Tarde",
+      "horario": "17:00H",
+      "liturgia": "todos os santos"
+    },
+    {
+      "id": 1793543478195,
+      "categoria": "ESPECIAL",
+      "data": "2026-11-02",
+      "ordemLabel": "Missa (Segunda)",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "finados",
+      "chaveEspecial": "finados"
+    },
+    {
+      "id": 1793543392846,
+      "categoria": "SEMANA",
+      "data": "2026-11-05",
+      "ordemLabel": "1ª Quinta",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "31 semana do tempo comum"
+    },
+    {
+      "id": 1793543495781,
+      "categoria": "ESPECIAL",
+      "data": "2026-11-06",
+      "ordemLabel": "Missa (Sexta)",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "sagrado coração de jesus",
+      "chaveEspecial": "sagrado coração de jesus"
+    },
+    {
+      "id": 1793543329673,
+      "categoria": "SABADO",
+      "data": "2026-11-07",
+      "ordemLabel": "1º Sábado",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "32 domingo do tempo comum"
+    },
+    {
+      "id": 1793543177484,
+      "categoria": "DOMINGO",
+      "data": "2026-11-08",
+      "ordemLabel": "2º Domingo",
+      "turno": "Manhã",
+      "horario": "07:00H",
+      "liturgia": "32 domingo do tempo comum"
+    },
+    {
+      "id": 1793543190833,
+      "categoria": "DOMINGO",
+      "data": "2026-11-08",
+      "ordemLabel": "2º Domingo",
+      "turno": "Tarde",
+      "horario": "17:00H",
+      "liturgia": "32 domingo do tempo comum"
+    },
+    {
+      "id": 1793543406662,
+      "categoria": "SEMANA",
+      "data": "2026-11-12",
+      "ordemLabel": "2ª Quinta",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "são josafá"
+    },
+    {
+      "id": 1793543513488,
+      "categoria": "ESPECIAL",
+      "data": "2026-11-13",
+      "ordemLabel": "Missa (Sexta)",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "missa votiva nossa senhora",
+      "chaveEspecial": "missa votiva nossa senhora"
+    },
+    {
+      "id": 1793543344805,
+      "categoria": "SABADO",
+      "data": "2026-11-14",
+      "ordemLabel": "2º Sábado",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "33 domingo do tempo comum"
+    },
+    {
+      "id": 1793543213484,
+      "categoria": "DOMINGO",
+      "data": "2026-11-15",
+      "ordemLabel": "3º Domingo",
+      "turno": "Manhã",
+      "horario": "07:00H",
+      "liturgia": "33 domingo do tempo comum"
+    },
+    {
+      "id": 1793543218115,
+      "categoria": "DOMINGO",
+      "data": "2026-11-15",
+      "ordemLabel": "3º Domingo",
+      "turno": "Tarde",
+      "horario": "17:00H",
+      "liturgia": "33 domingo do tempo comum"
+    },
+    {
+      "id": 1793543419873,
+      "categoria": "SEMANA",
+      "data": "2026-11-19",
+      "ordemLabel": "3ª Quinta",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "santos roque"
+    },
+    {
+      "id": 1793543353625,
+      "categoria": "SABADO",
+      "data": "2026-11-21",
+      "ordemLabel": "3º Sábado",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "cristo rei"
+    },
+    {
+      "id": 1793543230099,
+      "categoria": "DOMINGO",
+      "data": "2026-11-22",
+      "ordemLabel": "4º Domingo",
+      "turno": "Manhã",
+      "horario": "07:00H",
+      "liturgia": "cristo rei"
+    },
+    {
+      "id": 1793543234864,
+      "categoria": "DOMINGO",
+      "data": "2026-11-22",
+      "ordemLabel": "4º Domingo",
+      "turno": "Tarde",
+      "horario": "17:00H",
+      "liturgia": "cristo rei"
+    },
+    {
+      "id": 1793543431155,
+      "categoria": "SEMANA",
+      "data": "2026-11-26",
+      "ordemLabel": "4ª Quinta",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "34 semano do tempo comum"
+    },
+    {
+      "id": 1793543365346,
+      "categoria": "SABADO",
+      "data": "2026-11-28",
+      "ordemLabel": "4º Sábado",
+      "turno": "Noite",
+      "horario": "19:00H",
+      "liturgia": "1 domingo do advento"
+    },
+    {
+      "id": 1793543250585,
+      "categoria": "DOMINGO",
+      "data": "2026-11-29",
+      "ordemLabel": "5º Domingo",
+      "turno": "Manhã",
+      "horario": "07:00H",
+      "liturgia": "1 domingo do advento"
+    },
+    {
+      "id": 1793543255274,
+      "categoria": "DOMINGO",
+      "data": "2026-11-29",
+      "ordemLabel": "5º Domingo",
+      "turno": "Tarde",
+      "horario": "17:00H",
+      "liturgia": "1 domingo do advento"
+    }
+  ]
+}
