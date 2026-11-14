@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -19,6 +20,9 @@
     <!-- Biblioteca html2pdf.js via CDN para exportação real em PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
+    <!-- ========================================================================== -->
+    <!-- [SEÇÃO 1: CSS] ESTILOS GLOBAIS E COMPONENTES                               -->
+    <!-- ========================================================================== -->
     <style>
         /* ==========================================================================
            DESIGN TOKENS & PALETA LITÚRGICA (SÃO JUDAS TADEU)
@@ -879,12 +883,6 @@
             background-color: #FAF7F2;
         }
 
-.crest-circle img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
 
 .crest-circle {
   width: 56px;
@@ -908,6 +906,9 @@
 }
     </style>
 </head>
+<!-- ========================================================================== -->
+<!-- [SEÇÃO 2: HTML] ESTRUTURA DE TELAS, TABELAS E MODAIS                       -->
+<!-- ========================================================================== -->
 <body>
 
     <!-- ==========================================================================
@@ -2813,6 +2814,9 @@ MARIA FERNANDA 30/10</textarea>
     <!-- ==========================================================================
          LÓGICA DA APLICAÇÃO (JAVASCRIPT VANILLA + MOCK DATA + COMENTÁRIOS FASTAPI)
          ========================================================================== -->
+    <!-- ========================================================================== -->
+    <!-- [SEÇÃO 3: JAVASCRIPT] LÓGICA DA APLICAÇÃO E INTEGRAÇÃO FASTAPI             -->
+    <!-- ========================================================================== -->
     <script>
         /**
          * ============================================================================
@@ -2825,104 +2829,7 @@ MARIA FERNANDA 30/10</textarea>
          */
         const PAPEIS_PERMITIDOS = ["Coordenação", "Cerimoniário", "Coroinha"];
 
-        const coroinhasDB = [
-            {
-                id: 1,
-                nome: "Gabriel Santos",
-                iniciais: "GS",
-                email: "gabriel.santos@saojudas.org.br",
-                papel: "Cerimoniário",
-                isAdmin: false
-            },
-            {
-                id: 2,
-                nome: "Lucas Oliveira",
-                iniciais: "LO",
-                email: "lucas.oliveira@saojudas.org.br",
-                papel: "Coroinha",
-                isAdmin: false
-            },
-            {
-                id: 3,
-                nome: "Mariana Costa",
-                iniciais: "MC",
-                email: "mariana.costa@saojudas.org.br",
-                papel: "Coroinha",
-                isAdmin: false
-            },
-            {
-                id: 4,
-                nome: "Rafael Almeida",
-                iniciais: "RA",
-                email: "rafael.almeida@saojudas.org.br",
-                papel: "Coordenação",
-                isAdmin: true
-            },
-            {
-                id: 5,
-                nome: "Ana Beatriz",
-                iniciais: "AB",
-                email: "ana.beatriz@saojudas.org.br",
-                papel: "Coroinha",
-                isAdmin: false
-            },
-            {
-                id: 6,
-                nome: "Mateus Ferreira",
-                iniciais: "MF",
-                email: "mateus.ferreira@saojudas.org.br",
-                papel: "Coroinha",
-                isAdmin: false
-            },
-            {
-                id: 7,
-                nome: "Sofia Ribeiro",
-                iniciais: "SR",
-                email: "sofia.ribeiro@saojudas.org.br",
-                papel: "Cerimoniário",
-                isAdmin: false
-            },
-            {
-                id: 8,
-                nome: "Kaiky Diniz",
-                iniciais: "KD",
-                email: "kaiky.diniz@saojudas.org.br",
-                papel: "Coroinha",
-                isAdmin: false
-            },
-            {
-                id: 9,
-                nome: "Natiely Silva",
-                iniciais: "NS",
-                email: "natiely.silva@saojudas.org.br",
-                papel: "Coroinha",
-                isAdmin: false
-            },
-            {
-                id: 10,
-                nome: "Juliana Martins",
-                iniciais: "JM",
-                email: "juliana.martins@saojudas.org.br",
-                papel: "Cerimoniário",
-                isAdmin: false
-            },
-            {
-                id: 11,
-                nome: "Maria Fernanda",
-                iniciais: "MF",
-                email: "maria.fernanda@saojudas.org.br",
-                papel: "Coroinha",
-                isAdmin: false
-            },
-            {
-                id: 12,
-                nome: "Pedro Henrique",
-                iniciais: "PH",
-                email: "pedro.henrique@saojudas.org.br",
-                papel: "Coordenação",
-                isAdmin: true
-            }
-        ];
+        const coroinhasDB = [];
 
         // Mapa de horários por turno litúrgico
         const HORARIOS_TURNO = {
@@ -2948,352 +2855,7 @@ MARIA FERNANDA 30/10</textarea>
          * Sincronizada com `escalasDB` para que qualquer falta ou substituição
          * reflita tanto nos cards/tabela quanto na Folha Única A4 Resumida.
          */
-        const missasOutubro2026 = [
-            // ================= COLUNA ESQUERDA: SANTAS MISSAS NA SEMANA =================
-            {
-                codigo: "SEM_01_10",
-                colunaA4: "SEMANA",
-                data: "2026-10-01",
-                dataCurta: "01/10/26",
-                diaSemana: "Quinta-feira",
-                tituloLiturgico: "STA TERESA DO MENINO JESUS",
-                subtituloHorario: "QUINTA-FEIRA/NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 1001, funcao: "CRUZ", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1002, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1003, funcao: "TOCHA", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1004, funcao: "MISSAL", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1005, funcao: "MESTRE", coroinhaId: 1, coroinhaNome: "Gabriel Santos", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "SEM_08_10",
-                colunaA4: "SEMANA",
-                data: "2026-10-08",
-                dataCurta: "08/10/26",
-                diaSemana: "Quinta-feira",
-                tituloLiturgico: "QUINTA-FEIRA DA XXVII SEMANA DO T. COMUM",
-                subtituloHorario: "QUINTA-FEIRA/NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 1006, funcao: "CRUZ", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1007, funcao: "TOCHA", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1008, funcao: "TOCHA", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1009, funcao: "MISSAL", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1010, funcao: "MESTRE", coroinhaId: 7, coroinhaNome: "Sofia Ribeiro", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "SEM_12_10",
-                colunaA4: "SEMANA",
-                data: "2026-10-12",
-                dataCurta: "12/10/26",
-                diaSemana: "Segunda-feira",
-                tituloLiturgico: "(S.) NOSSA SRA. DA CONCEIÇÃO APARECIDA",
-                subtituloHorario: "NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 1011, funcao: "TURÍBULO", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Solenidade Padroeira do Brasil" },
-                    { idEscala: 1012, funcao: "NAVETA", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Solenidade Padroeira do Brasil" },
-                    { idEscala: 1013, funcao: "CRUZ", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1014, funcao: "TOCHA", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1015, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1016, funcao: "AUXILIAR", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1017, funcao: "MISSAL", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1018, funcao: "MESTRE", coroinhaId: 1, coroinhaNome: "Gabriel Santos", status: "CONFIRMADO", detalheStatus: "Solenidade Padroeira do Brasil" },
-                    { idEscala: 1019, funcao: "MESTRE", coroinhaId: 10, coroinhaNome: "Juliana Martins", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "SEM_13_10",
-                colunaA4: "SEMANA",
-                data: "2026-10-13",
-                dataCurta: "13/10/26",
-                diaSemana: "Terça-feira",
-                tituloLiturgico: "MISSA VOTIVA NOSSA SENHORA",
-                subtituloHorario: "NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 1020, funcao: "CRUZ", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1021, funcao: "TOCHA", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1022, funcao: "TOCHA", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1023, funcao: "MISSAL", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1024, funcao: "MESTRE", coroinhaId: 4, coroinhaNome: "Rafael Almeida", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "SEM_15_10",
-                colunaA4: "SEMANA",
-                data: "2026-10-15",
-                dataCurta: "15/10/26",
-                diaSemana: "Quinta-feira",
-                tituloLiturgico: "STA TERESA DE JESUS",
-                subtituloHorario: "QUINTA-FEIRA/NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 1025, funcao: "CRUZ", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1026, funcao: "TOCHA", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1027, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1028, funcao: "MISSAL", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1029, funcao: "MESTRE", coroinhaId: 10, coroinhaNome: "Juliana Martins", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "SEM_22_10",
-                colunaA4: "SEMANA",
-                data: "2026-10-22",
-                dataCurta: "22/10/26",
-                diaSemana: "Quinta-feira",
-                tituloLiturgico: "QUINTA-FEIRA DA XXIX SEMANA DO T. COMUM",
-                subtituloHorario: "QUINTA-FEIRA/NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 1030, funcao: "CRUZ", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1031, funcao: "TOCHA", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1032, funcao: "TOCHA", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1033, funcao: "MISSAL", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1034, funcao: "MESTRE", coroinhaId: 1, coroinhaNome: "Gabriel Santos", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "SEM_29_10",
-                colunaA4: "SEMANA",
-                data: "2026-10-29",
-                dataCurta: "29/10/26",
-                diaSemana: "Quinta-feira",
-                tituloLiturgico: "QUINTA-FEIRA DA XXX SEMANA DO T. COMUM",
-                subtituloHorario: "QUINTA-FEIRA/NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 1035, funcao: "CRUZ", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "PENDENTE", detalheStatus: "Falta informada • Buscando Substituto" },
-                    { idEscala: 1036, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1037, funcao: "TOCHA", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1038, funcao: "MISSAL", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 1039, funcao: "MESTRE", coroinhaId: 1, coroinhaNome: "Gabriel Santos", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-
-            // ================= COLUNA DIREITA: SANTAS MISSAS NO FINAL DE SEMANA =================
-            // 1º FIM DE SEMANA (03/10 e 04/10)
-            {
-                codigo: "FDS_03_10_NOITE",
-                colunaA4: "FDS",
-                grupoFds: 1,
-                data: "2026-10-03",
-                dataCurta: "03/10/26",
-                diaSemana: "Sábado",
-                tituloLiturgico: "XXVII DOMINGO DO TEMPO COMUM",
-                subtituloHorario: "SÁBADO/NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 2001, funcao: "CRUZ", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2002, funcao: "TOCHA", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2003, funcao: "TOCHA", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2004, funcao: "AUXILIAR", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2005, funcao: "MISSAL", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2006, funcao: "MESTRE", coroinhaId: 7, coroinhaNome: "Sofia Ribeiro", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "FDS_04_10_MANHA",
-                colunaA4: "FDS",
-                grupoFds: 1,
-                data: "2026-10-04",
-                dataCurta: "04/10/26",
-                diaSemana: "Domingo",
-                tituloLiturgico: "XXVII DOMINGO DO TEMPO COMUM",
-                subtituloHorario: "MANHÃ 07:00H",
-                turno: "Manhã",
-                horario: "07:00H",
-                posicoes: [
-                    { idEscala: 2007, funcao: "CRUZ", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2008, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2009, funcao: "TOCHA", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2010, funcao: "AUXILIAR", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2011, funcao: "MISSAL", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2012, funcao: "MESTRE", coroinhaId: 1, coroinhaNome: "Gabriel Santos", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-
-            // 2º FIM DE SEMANA (10/10 e 11/10)
-            {
-                codigo: "FDS_10_10_NOITE",
-                colunaA4: "FDS",
-                grupoFds: 2,
-                data: "2026-10-10",
-                dataCurta: "10/10/26",
-                diaSemana: "Sábado",
-                tituloLiturgico: "XXVIII DOMINGO DO TEMPO COMUM",
-                subtituloHorario: "SÁBADO/NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 2013, funcao: "CRUZ", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2014, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2015, funcao: "TOCHA", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2016, funcao: "AUXILIAR", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2017, funcao: "MISSAL", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2018, funcao: "MESTRE", coroinhaId: 10, coroinhaNome: "Juliana Martins", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2019, funcao: "MESTRE", coroinhaId: 12, coroinhaNome: "Pedro Henrique", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "FDS_11_10_MANHA",
-                colunaA4: "FDS",
-                grupoFds: 2,
-                data: "2026-10-11",
-                dataCurta: "11/10/26",
-                diaSemana: "Domingo",
-                tituloLiturgico: "XXVIII DOMINGO DO TEMPO COMUM",
-                subtituloHorario: "MANHÃ 07:00H",
-                turno: "Manhã",
-                horario: "07:00H",
-                posicoes: [
-                    { idEscala: 2020, funcao: "CRUZ", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2021, funcao: "TOCHA", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2022, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2023, funcao: "AUXILIAR", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2024, funcao: "MISSAL", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2025, funcao: "MESTRE", coroinhaId: 4, coroinhaNome: "Rafael Almeida", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "FDS_11_10_TARDE",
-                colunaA4: "FDS",
-                grupoFds: 2,
-                data: "2026-10-11",
-                dataCurta: "11/10/26",
-                diaSemana: "Domingo",
-                tituloLiturgico: "XXVIII DOMINGO DO TEMPO COMUM",
-                subtituloHorario: "TARDE 17:00H",
-                turno: "Tarde",
-                horario: "17:00H",
-                posicoes: [
-                    { idEscala: 2026, funcao: "CRUZ", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2027, funcao: "TOCHA", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2028, funcao: "TOCHA", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2029, funcao: "AUXILIAR", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2030, funcao: "MISSAL", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2031, funcao: "MESTRE", coroinhaId: 1, coroinhaNome: "Gabriel Santos", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-
-            // 3º FIM DE SEMANA (17/10 e 18/10)
-            {
-                codigo: "FDS_17_10_NOITE",
-                colunaA4: "FDS",
-                grupoFds: 3,
-                data: "2026-10-17",
-                dataCurta: "17/10/26",
-                diaSemana: "Sábado",
-                tituloLiturgico: "XXIX DOMINGO DO TEMPO COMUM",
-                subtituloHorario: "SÁBADO/NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 2032, funcao: "CRUZ", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2033, funcao: "TOCHA", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2034, funcao: "TOCHA", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2035, funcao: "AUXILIAR", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2036, funcao: "MISSAL", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2037, funcao: "MESTRE", coroinhaId: 7, coroinhaNome: "Sofia Ribeiro", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "FDS_18_10_MANHA",
-                colunaA4: "FDS",
-                grupoFds: 3,
-                data: "2026-10-18",
-                dataCurta: "18/10/26",
-                diaSemana: "Domingo",
-                tituloLiturgico: "XXIX DOMINGO DO TEMPO COMUM",
-                subtituloHorario: "MANHÃ 07:00H",
-                turno: "Manhã",
-                horario: "07:00H",
-                posicoes: [
-                    { idEscala: 2038, funcao: "CRUZ", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2039, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2040, funcao: "TOCHA", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2041, funcao: "AUXILIAR", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2042, funcao: "MISSAL", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2043, funcao: "MESTRE", coroinhaId: 10, coroinhaNome: "Juliana Martins", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            },
-            {
-                codigo: "FDS_18_10_TARDE",
-                colunaA4: "FDS",
-                grupoFds: 3,
-                data: "2026-10-18",
-                dataCurta: "18/10/26",
-                diaSemana: "Domingo",
-                tituloLiturgico: "XXIX DOMINGO DO TEMPO COMUM",
-                subtituloHorario: "TARDE 17:00H",
-                turno: "Tarde",
-                horario: "17:00H",
-                posicoes: [
-                    { idEscala: 2044, funcao: "CRUZ", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2045, funcao: "TOCHA", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2046, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2047, funcao: "AUXILIAR", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2048, funcao: "MISSAL", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2049, funcao: "MESTRE", coroinhaId: 12, coroinhaNome: "Pedro Henrique", status: "TROCA", substitutoNome: "Sofia Ribeiro", detalheStatus: "Substituição assumida por Sofia Ribeiro" }
-                ]
-            },
-
-            // 4º FIM DE SEMANA (24/10 e 25/10)
-            {
-                codigo: "FDS_24_10_NOITE",
-                colunaA4: "FDS",
-                grupoFds: 4,
-                data: "2026-10-24",
-                dataCurta: "24/10/26",
-                diaSemana: "Sábado",
-                tituloLiturgico: "TODOS OS SANTOS",
-                subtituloHorario: "SÁBADO/NOITE 19:00H",
-                turno: "Noite",
-                horario: "19:00H",
-                posicoes: [
-                    { idEscala: 2050, funcao: "TURÍBULO", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", status: "CONFIRMADO", detalheStatus: "Vigília Solene" },
-                    { idEscala: 2051, funcao: "NAVETA", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Vigília Solene" },
-                    { idEscala: 2052, funcao: "CRUZ", coroinhaId: 3, coroinhaNome: "Mariana Costa", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2053, funcao: "TOCHA", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2054, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2055, funcao: "AUXILIAR", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2056, funcao: "MISSAL", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2057, funcao: "MESTRE", coroinhaId: 1, coroinhaNome: "Gabriel Santos", status: "CONFIRMADO", detalheStatus: "Vigília Solene" },
-                    { idEscala: 2058, funcao: "MESTRE", coroinhaId: 4, coroinhaNome: "Rafael Almeida", status: "CONFIRMADO", detalheStatus: "Vigília Solene" }
-                ]
-            },
-            {
-                codigo: "FDS_25_10_MANHA",
-                colunaA4: "FDS",
-                grupoFds: 4,
-                data: "2026-10-25",
-                dataCurta: "25/10/26",
-                diaSemana: "Domingo",
-                tituloLiturgico: "XXX DOMINGO DO TEMPO COMUM",
-                subtituloHorario: "MANHÃ 07:00H",
-                turno: "Manhã",
-                horario: "07:00H",
-                posicoes: [
-                    { idEscala: 2059, funcao: "CRUZ", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2060, funcao: "TOCHA", coroinhaId: 8, coroinhaNome: "Kaiky Diniz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2061, funcao: "TOCHA", coroinhaId: 9, coroinhaNome: "Natiely Silva", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2062, funcao: "AUXILIAR", coroinhaId: 5, coroinhaNome: "Ana Beatriz", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2063, funcao: "MISSAL", coroinhaId: 11, coroinhaNome: "Maria Fernanda", status: "CONFIRMADO", detalheStatus: "Presença confirmada" },
-                    { idEscala: 2064, funcao: "MESTRE", coroinhaId: 1, coroinhaNome: "Gabriel Santos", status: "CONFIRMADO", detalheStatus: "Presença confirmada" }
-                ]
-            }
-        ];
+        const missasOutubro2026 = [];
 
         // Gera a lista plana `escalasDB` referenciando os mesmos objetos de posição de `missasOutubro2026`
         // para que alterações em `escalasDB` reflitam instantaneamente na Folha Resumida A4
@@ -3320,59 +2882,7 @@ MARIA FERNANDA 30/10</textarea>
          * Regra: Apenas após `statusAprovacao === "APROVADA"` pelo Administrador
          * a troca/substituição é efetivada na Escala Geral e na Folha A4.
          */
-        let historicoTrocasDB = [
-            {
-                id: 1,
-                tipo: "Substituição",
-                solicitanteId: 12,
-                solicitante: "Pedro Henrique",
-                substitutoId: 7,
-                substituto: "Sofia Ribeiro",
-                escalaOrigemId: 2049,
-                data1: "2026-10-18",
-                turno1: "Tarde",
-                data2: null,
-                turno2: null,
-                comentario: "Compromisso familiar no domingo à tarde.",
-                statusAprovacao: "APROVADA",
-                avaliadoPor: "Rafael Almeida",
-                criadoEm: "16/10/2026 às 18:40"
-            },
-            {
-                id: 2,
-                tipo: "Substituição",
-                solicitanteId: 2,
-                solicitante: "Lucas Oliveira",
-                substitutoId: 6,
-                substituto: "Mateus Ferreira",
-                escalaOrigemId: 2050,
-                data1: "2026-10-24",
-                turno1: "Noite",
-                data2: null,
-                turno2: null,
-                comentario: "Prova da faculdade no sábado à noite; Mateus concordou em assumir o Turíbulo.",
-                statusAprovacao: "PENDENTE",
-                avaliadoPor: null,
-                criadoEm: "23/10/2026 às 19:15"
-            },
-            {
-                id: 3,
-                tipo: "Troca",
-                solicitanteId: 8,
-                solicitante: "Kaiky Diniz",
-                substitutoId: 5,
-                substituto: "Ana Beatriz",
-                escalaOrigemId: 2060,
-                data1: "2026-10-25",
-                turno1: "Manhã",
-                data2: "2026-10-29",
-                turno2: "Noite",
-                comentario: "Permuta combinada pelo grupo da pastoral para o domingo de manhã.",
-                statusAprovacao: "PENDENTE",
-                avaliadoPor: null,
-                criadoEm: "24/10/2026 às 09:20"
-            }
-        ];
+        let historicoTrocasDB = [];
 
         /**
          * Gera uma imagem ilustrativa em Canvas (Data URL) representando o registro fotográfico
@@ -3436,31 +2946,7 @@ MARIA FERNANDA 30/10</textarea>
          * Banco de Relatórios de Presença e Registro Fotográfico enviados pelos Cerimoniários
          * Status possíveis: "PENDENTE_VALIDACAO" | "VALIDADO" | "REJEITADO"
          */
-        let relatoriosPresencaDB = [
-            {
-                id: 501,
-                codigoMissa: "SEM_22_10",
-                tituloMissa: "QUINTA-FEIRA DA XXIX SEMANA DO T. COMUM",
-                dataMissa: "2026-10-22",
-                turnoMissa: "Noite",
-                horarioMissa: "19:00H",
-                cerimoniarioId: 1,
-                cerimoniarioNome: "Gabriel Santos",
-                enviadoEm: "22/10/2026 às 20:18",
-                statusValidacao: "PENDENTE_VALIDACAO",
-                validadoPor: null,
-                validadoEm: null,
-                observacaoGeral: "Celebração ocorreu em perfeita ordem. O coroinha escalado na Tocha (Mateus Ferreira) não compareceu e não avisou previamente.",
-                fotoDataUrl: gerarImagemSimuladaAltar("QUINTA-FEIRA DA XXIX SEMANA DO T. COMUM", "22/10/2026 • 19:00H"),
-                itensChamada: [
-                    { idEscala: 1030, funcao: "CRUZ", coroinhaId: 5, coroinhaNome: "Ana Beatriz", presente: true, obsIndividual: "Pontual" },
-                    { idEscala: 1031, funcao: "TOCHA", coroinhaId: 6, coroinhaNome: "Mateus Ferreira", presente: false, obsIndividual: "Ausente sem justificativa prévia" },
-                    { idEscala: 1032, funcao: "TOCHA", coroinhaId: 11, coroinhaNome: "Maria Fernanda", presente: true, obsIndividual: "" },
-                    { idEscala: 1033, funcao: "MISSAL", coroinhaId: 2, coroinhaNome: "Lucas Oliveira", presente: true, obsIndividual: "" },
-                    { idEscala: 1034, funcao: "MESTRE", coroinhaId: 1, coroinhaNome: "Gabriel Santos", presente: true, obsIndividual: "Cerimoniário responsável" }
-                ]
-            }
-        ];
+        let relatoriosPresencaDB = [];
 
         /**
          * Histórico consolidado de Faltas Confirmadas (alimentado tanto por faltas informadas
@@ -3469,83 +2955,10 @@ MARIA FERNANDA 30/10</textarea>
         let historicoFaltasConfirmadasDB = [];
 
         // Banco de Respostas do Formulário de Disponibilidade para Novembro/2026
-        let disponibilidadesDB = [
-            {
-                id: 101,
-                coroinhaId: 1,
-                nome: "Gabriel Santos",
-                email: "gabriel.santos@saojudas.org.br",
-                domingos: [
-                    "1º Domingo 01/11 - Manhã 07:00H - Todos os Santos, Solenidade.",
-                    "3º Domingo 15/11 - Manhã 07:00H - 33º Domingo do Tempo Comum.",
-                    "4º Domingo 22/11 - Tarde 17:00H - Cristo Rei, Solenidade."
-                ],
-                sabados: [
-                    "2º Sábado 14/11 - Noite 19:00H - 33º Domingo do Tempo Comum.",
-                    "4º Sábado 28/11 - Noite 19:00H - 1º Domingo do Advento."
-                ],
-                quintas: [
-                    "1ª Quinta 05/11 - Noite 19:00H - 31ª Semana do Tempo Comum.",
-                    "3ª Quinta 19/11 - Noite 19:00H - Santos Roque González, Afonso Rodríguez e João de Castillo, presbíteros e mártires - Memória."
-                ],
-                fieisDefuntos: "Sim.",
-                sagradoCoracao: "Sim.",
-                missaMensal: "Servir como coroinha ou cerimoniário.",
-                missaNossaSenhora: "Sim.",
-                comentario: "Disponível também para cobrir eventuais faltas nas quintas-feiras.",
-                enviadoEm: "22/10/2026 às 19:30"
-            },
-            {
-                id: 102,
-                coroinhaId: 2,
-                nome: "Lucas Oliveira",
-                email: "lucas.oliveira@saojudas.org.br",
-                domingos: [
-                    "2º Domingo 08/11 - Manhã 07:00H - 32º Domingo do Tempo Comum.",
-                    "4º Domingo 22/11 - Manhã 07:00H - Cristo Rei, Solenidade."
-                ],
-                sabados: [
-                    "1º Sábado 07/11 - Noite 19:00H - 32º Domingo do Tempo Comum.",
-                    "3º Sábado 21/11 - Noite 19:00H - Cristo Rei, Solenidade."
-                ],
-                quintas: [
-                    "2ª Quinta 12/11 - Noite 19:00H - São Josafá, bispo e mártir - Memória obrigatória."
-                ],
-                fieisDefuntos: "Sim.",
-                sagradoCoracao: "Não.",
-                missaMensal: "Servir na liturgia.",
-                missaNossaSenhora: "Sim.",
-                comentario: "No dia 06/11 terei aula na faculdade à noite.",
-                enviadoEm: "23/10/2026 às 14:10"
-            },
-            {
-                id: 103,
-                coroinhaId: 5,
-                nome: "Ana Beatriz",
-                email: "ana.beatriz@saojudas.org.br",
-                domingos: [
-                    "1º Domingo 01/11 - Tarde 17:00H - Todos os Santos, Solenidade.",
-                    "2º Domingo 08/11 - Tarde 17:00H - 32º Domingo do Tempo Comum.",
-                    "5º Domingo 29/11 - Manhã 07:00H - 1º Domingo do Advento."
-                ],
-                sabados: [
-                    "2º Sábado 14/11 - Noite 19:00H - 33º Domingo do Tempo Comum."
-                ],
-                quintas: [
-                    "1ª Quinta 05/11 - Noite 19:00H - 31ª Semana do Tempo Comum.",
-                    "4ª Quinta 26/11 - Noite 19:00H - 34ª Semana do Tempo Comum."
-                ],
-                fieisDefuntos: "Não.",
-                sagradoCoracao: "Sim.",
-                missaMensal: "Servir na acolhida.",
-                missaNossaSenhora: "Sim.",
-                comentario: "Sem observações adicionais.",
-                enviadoEm: "23/10/2026 às 18:05"
-            }
-        ];
+        let disponibilidadesDB = [];
 
         // Estado da Sessão Atual
-        let usuarioLogado = coroinhasDB[0]; // Padrão: Gabriel Santos
+        let usuarioLogado = { id: 1, nome: "", iniciais: "", email: "", papel: "Coroinha", isAdmin: false };
         let filtroMinhasAtual = "TODAS";
         let filtroRelatorioOcorrencias = "TODOS";
         let modoEscalaResumidaAtivo = false;
@@ -3621,52 +3034,6 @@ MARIA FERNANDA 30/10</textarea>
          * ("Coordenação", "Cerimoniário" ou "Coroinha") e redireciona automaticamente
          * os administradores para o Painel Administrativo e Relatórios.
          */
-        async function realizarLogin(event) {
-            if (event) event.preventDefault();
-
-            const emailInput = document.getElementById("login-email").value.trim().toLowerCase();
-            const senhaInput = document.getElementById("login-password").value.trim();
-            const alertBox = document.getElementById("login-error-alert");
-
-            if (!emailInput || !senhaInput) {
-                alertBox.classList.remove("d-none");
-                return;
-            }
-            alertBox.classList.add("d-none");
-
-            // [INTEGRAÇÃO FUTURA FASTAPI]: POST /api/v1/auth/login
-            const encontrado = coroinhasDB.find(c => c.email.toLowerCase() === emailInput);
-            if (encontrado) {
-                usuarioLogado = encontrado;
-            } else {
-                const nomeExtraido = emailInput.split("@")[0].replace(".", " ");
-                const nomeFormatado = nomeExtraido.replace(/\b\w/g, l => l.toUpperCase());
-                usuarioLogado = {
-                    id: 1,
-                    nome: nomeFormatado,
-                    iniciais: nomeFormatado.substring(0, 2).toUpperCase(),
-                    email: emailInput,
-                    papel: "Coroinha", // Classificação interna obrigatória
-                    isAdmin: false
-                };
-            }
-
-            aplicarSessaoUsuarioLogado();
-
-            // Redirecionamento automático conforme o nível de permissão processado internamente
-            const possuiPermissaoAdmin = Boolean(usuarioLogado.isAdmin || usuarioLogado.papel === "Coordenação");
-            if (possuiPermissaoAdmin) {
-                navegarPara("admin");
-                mostrarToast(
-                    "Bem-vindo(a), " + usuarioLogado.nome,
-                    "Permissão administrativa identificada. Você foi direcionado(a) para a Central de Administração e Relatórios.",
-                    "info"
-                );
-            } else {
-                navegarPara("dashboard");
-                mostrarToast("Bem-vindo(a)!", `Acesso liberado para ${usuarioLogado.nome}.`, "success");
-            }
-        }
 
         /**
          * Atualiza os elementos de cabeçalho (exibindo APENAS Nome e Sobrenome)
@@ -3875,22 +3242,6 @@ MARIA FERNANDA 30/10</textarea>
             carregarMinhasEscalas();
         }
 
-        function informarFaltaMissa(escalaId) {
-            const escala = escalasDB.find(e => e.id === escalaId);
-            if (!escala) return;
-
-            escala.status = "PENDENTE";
-            escala.detalheStatus = "Falta informada • Buscando Substituto";
-
-            carregarMinhasEscalas();
-            renderizarEscalaGeral();
-            renderizarFolhaResumidaA4();
-            mostrarToast(
-                "Falta Registrada",
-                `Sua escala do dia ${formatarDataBR(escala.data)} (${escala.turno}) foi marcada como Pendente / Buscando Substituto.`,
-                "warning"
-            );
-        }
 
         function popularSelectSubstitutos() {
             const select = document.getElementById("select-coroinha-substituto");
@@ -3974,52 +3325,6 @@ MARIA FERNANDA 30/10</textarea>
             }
         }
 
-        function confirmarTrocaOuSubstituicao(event) {
-            event.preventDefault();
-
-            const tipo = document.querySelector('input[name="tipoSolicitacao"]:checked')?.value || "Substituição";
-            const substitutoId = parseInt(document.getElementById("select-coroinha-substituto").value);
-            const substitutoObj = coroinhasDB.find(c => c.id === substitutoId);
-            if (!substitutoObj) {
-                mostrarToast("Atenção", "Selecione o coroinha que assumirá o posto.", "warning");
-                return;
-            }
-
-            const escalaOrigemIdRaw = document.getElementById("troca-escala-id-origem").value;
-            const data1 = document.getElementById("input-data-1").value;
-            const turno1 = document.querySelector('input[name="horarioMissa1"]:checked')?.value || "Manhã";
-            const data2 = tipo === "Troca" ? document.getElementById("input-data-2").value : null;
-            const turno2 = tipo === "Troca" ? (document.querySelector('input[name="horarioMissa2"]:checked')?.value || "Manhã") : null;
-            const comentario = document.getElementById("textarea-comentario").value.trim() || "Solicitação enviada pelo painel do coroinha.";
-
-            historicoTrocasDB.unshift({
-                id: Date.now(),
-                tipo,
-                solicitanteId: usuarioLogado.id,
-                solicitante: usuarioLogado.nome,
-                substitutoId: substitutoObj.id,
-                substituto: substitutoObj.nome,
-                escalaOrigemId: escalaOrigemIdRaw ? parseInt(escalaOrigemIdRaw) : null,
-                data1,
-                turno1,
-                data2,
-                turno2,
-                comentario,
-                statusAprovacao: "PENDENTE",
-                avaliadoPor: null,
-                criadoEm: "Agora mesmo"
-            });
-
-            modalTrocaInstance?.hide();
-            renderizarHistoricoTrocas();
-            atualizarBadgesPendenciasAdmin();
-
-            mostrarToast(
-                "Solicitação Enviada para Aprovação!",
-                `Seu pedido de ${tipo.toLowerCase()} com ${substitutoObj.nome} foi registrado e aguarda validação do Administrador.`,
-                "success"
-            );
-        }
 
         function renderizarHistoricoTrocas() {
             const container = document.getElementById("container-historico-trocas");
@@ -4095,53 +3400,6 @@ MARIA FERNANDA 30/10</textarea>
             preencherDadosIniciaisDisponibilidade();
         }
 
-        function salvarDisponibilidadeNovembro(event) {
-            event.preventDefault();
-
-            const email = document.getElementById("disp-email").value.trim();
-            const nome = document.getElementById("disp-nome").value.trim();
-            const domingos = Array.from(document.querySelectorAll('input[name="dispDomingos"]:checked')).map(el => el.value);
-            const sabados = Array.from(document.querySelectorAll('input[name="dispSabados"]:checked')).map(el => el.value);
-            const quintas = Array.from(document.querySelectorAll('input[name="dispQuintas"]:checked')).map(el => el.value);
-
-            if (domingos.length === 0 || sabados.length === 0 || quintas.length === 0) {
-                mostrarToast("Campos Obrigatórios", "Marque ao menos uma opção em Domingos, Sábados e Quintas-feiras.", "warning");
-                return;
-            }
-
-            const fieisDefuntos = document.querySelector('input[name="dispFieisDefuntos"]:checked')?.value || "Sim.";
-            const sagradoCoracao = document.querySelector('input[name="dispSagradoCoracao"]:checked')?.value || "Sim.";
-            const missaMensal = document.querySelector('input[name="dispMissaMensal"]:checked')?.value || "Nenhuma.";
-            const missaNossaSenhora = document.querySelector('input[name="dispMissaNossaSenhora"]:checked')?.value || "Sim.";
-            const comentario = document.getElementById("disp-comentario-final").value.trim() || "Sem observações adicionais.";
-
-            const novoRegistro = {
-                id: Date.now(),
-                coroinhaId: usuarioLogado.id,
-                nome,
-                email,
-                domingos,
-                sabados,
-                quintas,
-                fieisDefuntos,
-                sagradoCoracao,
-                missaMensal,
-                missaNossaSenhora,
-                comentario,
-                enviadoEm: "Agora mesmo"
-            };
-
-            const idx = disponibilidadesDB.findIndex(d => d.coroinhaId === usuarioLogado.id || d.email.toLowerCase() === email.toLowerCase());
-            if (idx >= 0) {
-                disponibilidadesDB[idx] = novoRegistro;
-            } else {
-                disponibilidadesDB.unshift(novoRegistro);
-            }
-
-            atualizarBadgeDisponibilidadeDashboard();
-            mostrarToast("Disponibilidade Registrada!", "Suas opções para Novembro/2026 foram enviadas para a coordenação.", "success");
-            navegarPara("dashboard");
-        }
 
         /**
          * ============================================================================
@@ -4397,32 +3655,6 @@ MARIA FERNANDA 30/10</textarea>
         /**
          * Efetiva o envio do relatório de presença e foto (opcional) com status "PENDENTE_VALIDACAO"
          */
-        function confirmarEnvioRelatorioPresenca() {
-            if (!payloadRelatorioPresencaTemp) return;
-
-            // [INTEGRAÇÃO FUTURA FASTAPI]: POST /api/v1/cerimoniario/relatorios-presenca
-            const idxExistente = relatoriosPresencaDB.findIndex(r => r.codigoMissa === payloadRelatorioPresencaTemp.codigoMissa);
-            if (idxExistente >= 0) {
-                relatoriosPresencaDB[idxExistente] = payloadRelatorioPresencaTemp;
-            } else {
-                relatoriosPresencaDB.unshift(payloadRelatorioPresencaTemp);
-            }
-
-            modalConfirmarPresencaInstance?.hide();
-            document.getElementById("textarea-obs-cerimoniario").value = "";
-            limparFotoMissaSelecionada();
-            popularSelectMissasCerimoniario();
-            carregarCoroinhasMissaCerimoniario();
-            renderizarHistoricoPresencasCerimoniario();
-            atualizarBadgesPendenciasAdmin();
-
-            mostrarToast(
-                "Relatório Enviado para Validação!",
-                `A lista de presença da missa de ${formatarDataBR(payloadRelatorioPresencaTemp.dataMissa)} foi enviada e aguarda validação do Administrador.`,
-                "success"
-            );
-            payloadRelatorioPresencaTemp = null;
-        }
 
         function renderizarHistoricoPresencasCerimoniario() {
             const container = document.getElementById("container-historico-presencas-cerim");
@@ -4879,23 +4111,6 @@ MARIA FERNANDA 30/10</textarea>
         /**
          * Permite assumir voluntariamente uma vaga que está "Pendente" na Escala Geral
          */
-        function assumirVagaPendente(escalaId) {
-            const escala = escalasDB.find(e => e.id === escalaId);
-            if (!escala) return;
-
-            escala.status = "TROCA";
-            escala.substitutoNome = usuarioLogado.nome;
-            escala.detalheStatus = `Substituição voluntária assumida por ${usuarioLogado.nome}`;
-
-            renderizarEscalaGeral();
-            renderizarFolhaResumidaA4();
-            carregarMinhasEscalas();
-            mostrarToast(
-                "Deus lhe pague!",
-                `Você assumiu a vaga de ${escala.funcao} na missa do dia ${formatarDataBR(escala.data)} (${escala.turno}).`,
-                "success"
-            );
-        }
 
         function filtrarRapidoPendentes() {
             document.getElementById("filtro-status-geral").value = "PENDENTE";
@@ -5224,128 +4439,6 @@ MARIA FERNANDA 30/10</textarea>
          * APROVAÇÃO DE TROCA / SUBSTITUIÇÃO PELO ADMINISTRADOR
          * Efetiva a substituição ou troca na Escala Geral e na Folha A4 Oficial.
          */
-        function aprovarSolicitacaoTrocaAdmin(solicitacaoId) {
-            const item = historicoTrocasDB.find(t => t.id === solicitacaoId);
-            if (!item) return;
-
-            item.statusAprovacao = "APROVADA";
-            item.avaliadoPor = usuarioLogado.nome;
-
-            // Localiza a escala de origem e efetiva a substituição/troca
-            let escalaAlvo = null;
-            if (item.escalaOrigemId) {
-                escalaAlvo = escalasDB.find(e => e.id === item.escalaOrigemId);
-            }
-            if (!escalaAlvo) {
-                escalaAlvo = escalasDB.find(e => e.data === item.data1 && e.turno === item.turno1 && e.coroinhaNome === item.solicitante);
-            }
-
-            if (escalaAlvo) {
-                escalaAlvo.status = "TROCA";
-                escalaAlvo.substitutoNome = item.substituto;
-                escalaAlvo.detalheStatus = `${item.tipo} aprovada: ${item.substituto} assumiu o posto de ${item.solicitante.split(" ")[0]}`;
-            }
-
-            // Se for Troca cruzada (Sessão 2), efetiva também na segunda missa
-            if (item.tipo === "Troca" && item.data2) {
-                const escalaColega = escalasDB.find(e => e.data === item.data2 && e.turno === item.turno2 && e.coroinhaNome === item.substituto);
-                if (escalaColega) {
-                    escalaColega.status = "TROCA";
-                    escalaColega.substitutoNome = item.solicitante;
-                    escalaColega.detalheStatus = `Troca aprovada: ${item.solicitante} assumiu o posto de ${item.substituto.split(" ")[0]}`;
-                }
-            }
-
-            renderizarPainelAdministrador();
-            renderizarEscalaGeral();
-            renderizarFolhaResumidaA4();
-            renderizarHistoricoTrocas();
-
-            mostrarToast(
-                "Troca/Substituição Aprovada!",
-                `A solicitação de ${item.solicitante} com ${item.substituto} foi efetivada na Escala Geral e na Folha A4.`,
-                "success"
-            );
-        }
-
-        /**
-         * REPROVAÇÃO DE TROCA / SUBSTITUIÇÃO PELO ADMINISTRADOR
-         */
-        function reprovarSolicitacaoTrocaAdmin(solicitacaoId) {
-            const item = historicoTrocasDB.find(t => t.id === solicitacaoId);
-            if (!item) return;
-
-            item.statusAprovacao = "REPROVADA";
-            item.avaliadoPor = usuarioLogado.nome;
-
-            renderizarPainelAdministrador();
-            renderizarHistoricoTrocas();
-
-            mostrarToast(
-                "Solicitação Reprovada",
-                `A solicitação de ${item.tipo.toLowerCase()} de ${item.solicitante} foi reprovada. A escala original foi mantida.`,
-                "warning"
-            );
-        }
-
-        /**
-         * VALIDAÇÃO ADMINISTRATIVA DA PRESENÇA E REGISTRO AUTOMÁTICO DE FALTAS
-         * Assim que o Admin valida o relatório enviado pelo Cerimoniário, os coroinhas
-         * que não compareceram têm suas faltas registradas automaticamente no histórico e relatórios.
-         */
-        function validarRelatorioPresencaAdmin(relatorioId) {
-            const rel = relatoriosPresencaDB.find(r => r.id === relatorioId);
-            if (!rel) return;
-
-            rel.statusValidacao = "VALIDADO";
-            rel.validadoPor = usuarioLogado.nome;
-            rel.validadoEm = "Agora mesmo";
-
-            let faltasRegistradasAgora = 0;
-
-            rel.itensChamada.forEach(itemChamada => {
-                const escalaPos = escalasDB.find(e => e.id === itemChamada.idEscala);
-                if (!itemChamada.presente) {
-                    faltasRegistradasAgora++;
-                    if (escalaPos) {
-                        escalaPos.status = "PENDENTE";
-                        escalaPos.detalheStatus = `Falta confirmada na chamada pelo Cerimoniário (${rel.cerimoniarioNome})${itemChamada.obsIndividual ? ' • ' + itemChamada.obsIndividual : ''}`;
-                    }
-
-                    // Registra automaticamente no histórico de faltas confirmadas (evitando duplicidade)
-                    const jaRegistrada = historicoFaltasConfirmadasDB.some(f => f.idEscala === itemChamada.idEscala);
-                    if (!jaRegistrada) {
-                        historicoFaltasConfirmadasDB.unshift({
-                            id: Date.now() + itemChamada.idEscala,
-                            idEscala: itemChamada.idEscala,
-                            coroinhaNome: itemChamada.coroinhaNome,
-                            funcao: itemChamada.funcao,
-                            data: rel.dataMissa,
-                            turno: rel.turnoMissa,
-                            horario: rel.horarioMissa,
-                            celebracao: rel.tituloMissa,
-                            cerimoniarioNome: rel.cerimoniarioNome,
-                            observacao: itemChamada.obsIndividual || rel.observacaoGeral || "Ausência constatada em chamada oficial."
-                        });
-                    }
-                } else if (escalaPos && escalaPos.status === "CONFIRMADO") {
-                    escalaPos.detalheStatus = `Presença confirmada e validada (${rel.cerimoniarioNome})`;
-                }
-            });
-
-            renderizarPainelAdministrador();
-            renderizarEscalaGeral();
-            renderizarFolhaResumidaA4();
-            renderizarHistoricoPresencasCerimoniario();
-
-            mostrarToast(
-                "Presença Validada com Sucesso!",
-                faltasRegistradasAgora > 0
-                    ? `Relatório aprovado! ${faltasRegistradasAgora} falta(s) foram registradas automaticamente no histórico do sistema.`
-                    : `Relatório aprovado! Todos os coroinhas escalados tiveram presença confirmada.`,
-                "success"
-            );
-        }
 
         function filtrarTabelaRelatorioFaltas(filtro) {
             filtroRelatorioOcorrencias = filtro;
@@ -5694,80 +4787,6 @@ MARIA FERNANDA 30/10</textarea>
             `).join("");
         }
 
-        function alterarPapelInternoMembro(membroId, novoPapel) {
-            if (!PAPEIS_PERMITIDOS.includes(novoPapel)) return;
-            const membro = coroinhasDB.find(c => c.id === membroId);
-            if (!membro) return;
-
-            membro.papel = novoPapel;
-            membro.isAdmin = (novoPapel === "Coordenação");
-            renderizarPainelAdministrador();
-            mostrarToast(
-                "Papel Interno Atualizado",
-                `A classificação interna de ${membro.nome} foi alterada para "${novoPapel}".`,
-                "success"
-            );
-        }
-
-        function adicionarNovoMembroAdmin(event) {
-            event.preventDefault();
-            const nome = document.getElementById("novo-membro-nome").value.trim();
-            const email = document.getElementById("novo-membro-email").value.trim().toLowerCase();
-            const papel = document.getElementById("novo-membro-papel").value;
-
-            if (!nome || !email) return;
-
-            const novoId = coroinhasDB.length + 1;
-            const partesNome = nome.split(" ");
-            const iniciais = ((partesNome[0]?.[0] || "C") + (partesNome[1]?.[0] || "S")).toUpperCase();
-
-            coroinhasDB.push({
-                id: novoId,
-                nome: nome,
-                iniciais: iniciais,
-                email: email,
-                papel: PAPEIS_PERMITIDOS.includes(papel) ? papel : "Coroinha",
-                isAdmin: papel === "Coordenação"
-            });
-
-            // Atualiza seletor rápido da tela de login exibindo apenas Nome e Sobrenome
-            const quickSelect = document.getElementById("quick-user-select");
-            if (quickSelect) {
-                const opt = document.createElement("option");
-                opt.value = novoId;
-                opt.textContent = nome;
-                quickSelect.appendChild(opt);
-            }
-
-            document.getElementById("novo-membro-nome").value = "";
-            document.getElementById("novo-membro-email").value = "";
-
-            renderizarPainelAdministrador();
-            popularSelectSubstitutos();
-            mostrarToast("Membro Cadastrado", `${nome} foi incluído com o papel interno "${papel}".`, "success");
-        }
-
-        function designarSubstitutoPeloAdmin(escalaId) {
-            const selectEl = document.getElementById(`admin-sub-select-${escalaId}`);
-            if (!selectEl) return;
-
-            const substituto = coroinhasDB.find(c => c.id === parseInt(selectEl.value));
-            const escala = escalasDB.find(e => e.id === escalaId);
-            if (!substituto || !escala) return;
-
-            escala.status = "TROCA";
-            escala.substitutoNome = substituto.nome;
-            escala.detalheStatus = `Designado pela Coordenação: ${substituto.nome}`;
-
-            renderizarPainelAdministrador();
-            renderizarEscalaGeral();
-            renderizarFolhaResumidaA4();
-            mostrarToast(
-                "Vaga Preenchida!",
-                `${substituto.nome} foi designado para cobrir a posição ${escala.funcao} em ${formatarDataBR(escala.data)}.`,
-                "success"
-            );
-        }
 
         function atualizarConfiguracoesAdminA4() {
             const aviso04 = document.getElementById("admin-aviso-0410")?.value || "";
