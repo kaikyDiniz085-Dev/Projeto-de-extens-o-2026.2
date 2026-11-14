@@ -57,3 +57,7 @@ app.include_router(trocas.router)
 app.include_router(cerimoniario.router)
 app.include_router(admin.router)
 app.include_router(disponibilidade.router)
+
+from app.routers import padronizador
+
+app.include_router(padronizador.router)

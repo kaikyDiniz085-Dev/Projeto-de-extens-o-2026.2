@@ -159,3 +159,36 @@ class DisponibilidadeResponse(BaseModel):
     missaNossaSenhora: str
     comentario: Optional[str] = None
     enviadoEm: str
+
+
+from datetime import date
+from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class TemplateMissaCreate(BaseModel):
+    dia_semana: int = Field(..., ge=0, le=6)
+    horario: str = Field(..., pattern=r"^\d{2}:\d{2}(H)?$")
+
+
+class TemplateMissaResponse(BaseModel):
+    id: int
+    dia_semana: int
+    horario: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GerarMesSchema(BaseModel):
+    mes: int = Field(..., ge=1, le=12)
+    ano: int = Field(..., ge=2024, le=2100)
+
+
+class MissaGeradaResponse(BaseModel):
+    id: int
+    data_missa: date
+    horario: str
+    cor_liturgica: Optional[str] = None
+    titulo_liturgia: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)

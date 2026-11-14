@@ -171,3 +171,25 @@ class DisponibilidadeMensal(Base):
     enviado_em = Column(DateTime, default=datetime.utcnow)
 
     coroinha = relationship("Usuario", back_populates="disponibilidades")
+
+
+from sqlalchemy import Column, Date, Integer, String
+from app.database import Base
+
+
+class TemplateMissa(Base):
+    __tablename__ = "templates_missa"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dia_semana = Column(Integer, nullable=False, index=True)
+    horario = Column(String(10), nullable=False)
+
+
+class Missas(Base):
+    __tablename__ = "missas_padronizadas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    data_missa = Column(Date, nullable=False, index=True)
+    horario = Column(String(10), nullable=False)
+    cor_liturgica = Column(String(50), nullable=True)
+    titulo_liturgia = Column(String(255), nullable=True)
