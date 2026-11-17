@@ -1,6 +1,6 @@
 import calendar
 from datetime import date
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -21,20 +21,25 @@ LITURGIA_API_URL = "https://liturgia.up.railway.app/v2"
 
 async def consultar_liturgia_diaria(
     client: httpx.AsyncClient, data_alvo: date
-) -> Tuple[Optional[str], Optional[str]]:
+) -> Tuple[str, str]:
     data_formatada = data_alvo.strftime("%d-%m-%Y")
     try:
-        response = await client.get(f"{LITURGIA_API_URL}/{data_formatada}", timeout=8.0)
+        response = await client.get(
+            f"{LITURGIA_API_URL}/{data_formatada}",
+            timeout=10.0,
+            follow_redirects=True,
+        )
         if response.status_code == 200:
             dados = response.json()
-            if isinstance(dados, list) and dados:
+            if isinstance(dados, list) and len(dados) > 0:
                 dados = dados[0]
-            cor = dados.get("cor") or "Não informado"
-            titulo = dados.get("liturgia") or "Não informado"
-            return str(cor).strip(), str(titulo).strip()
-    except (httpx.RequestError, httpx.TimeoutException, ValueError, KeyError):
+            if isinstance(dados, dict):
+                cor = dados.get("cor") or "Verde"
+                titulo = dados.get("liturgia") or dados.get("titulo") or "Santa Missa"
+                return str(cor).strip(), str(titulo).strip()
+    except Exception:
         pass
-    return "Não informado", "Não informado"
+    return "Não informado", "Celebração Litúrgica"
 
 
 @router.get("/templates", response_model=List[TemplateMissaResponse])
@@ -90,24 +95,29 @@ def remover_template(template_id: int, db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
 )
 async def gerar_missas_mes(payload: GerarMesSchema, db: Session = Depends(get_db)):
-    templates = db.query(TemplateMissa).all()
+    templates = (
+        db.query(TemplateMissa)
+        .order_by(TemplateMissa.dia_semana.asc(), TemplateMissa.horario.asc())
+        .all()
+    )
     if not templates:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nenhum template semanal cadastrado para gerar o mês.",
+            detail="Cadastre pelo menos um template semanal antes de gerar o mês.",
         )
 
     _, ultimo_dia = calendar.monthrange(payload.ano, payload.mes)
-    novas_missas: List[Missas] = []
+    missas_do_mes: List[Missas] = []
+    novas_para_inserir: List[Missas] = []
     cache_liturgia_dia = {}
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(verify=False) as client:
         for dia in range(1, ultimo_dia + 1):
             data_atual = date(payload.ano, payload.mes, dia)
             dia_semana_atual = data_atual.weekday()
 
             templates_do_dia = [
-                t for t in templates if t.dia_semana == dia_semana_atual
+                t for t in templates if int(t.dia_semana) == dia_semana_atual
             ]
             if not templates_do_dia:
                 continue
@@ -120,7 +130,7 @@ async def gerar_missas_mes(payload: GerarMesSchema, db: Session = Depends(get_db
             cor_liturgica, titulo_liturgia = cache_liturgia_dia[data_atual]
 
             for tmpl in templates_do_dia:
-                ja_existe = (
+                existente = (
                     db.query(Missas)
                     .filter(
                         Missas.data_missa == data_atual,
@@ -128,22 +138,29 @@ async def gerar_missas_mes(payload: GerarMesSchema, db: Session = Depends(get_db
                     )
                     .first()
                 )
-                if ja_existe:
-                    continue
-
-                novas_missas.append(
-                    Missas(
+                if existente:
+                    if (
+                        not existente.titulo_liturgia
+                        or existente.titulo_liturgia in ["Não informado", "Celebração Litúrgica"]
+                    ) and titulo_liturgia != "Celebração Litúrgica":
+                        existente.cor_liturgica = cor_liturgica
+                        existente.titulo_liturgia = titulo_liturgia
+                    missas_do_mes.append(existente)
+                else:
+                    nova = Missas(
                         data_missa=data_atual,
                         horario=tmpl.horario,
                         cor_liturgica=cor_liturgica,
                         titulo_liturgia=titulo_liturgia,
                     )
-                )
+                    novas_para_inserir.append(nova)
+                    missas_do_mes.append(nova)
 
-    if novas_missas:
-        db.add_all(novas_missas)
-        db.commit()
-        for m in novas_missas:
-            db.refresh(m)
+    if novas_para_inserir:
+        db.add_all(novas_para_inserir)
 
-    return novas_missas
+    db.commit()
+    for m in missas_do_mes:
+        db.refresh(m)
+
+    return missas_do_mes
