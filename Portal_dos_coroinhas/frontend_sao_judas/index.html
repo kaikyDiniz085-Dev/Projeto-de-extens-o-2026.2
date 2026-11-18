@@ -904,6 +904,289 @@
   margin: 0;
   flex-shrink: 0;
 }
+
+/* ==========================================================================
+           OTIMIZAÇÃO VISUAL DOS BOTÕES DA NAVBAR (EXCLUSIVO DESKTOP / LAPTOP)
+           ========================================================================== */
+        @media (min-width: 768px) {
+            #main-navbar > .container {
+                max-width: 1380px;
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+            }
+
+            /* Evita quebra indesejada na marca e nos controles à direita */
+            #main-navbar .font-liturgical,
+            #header-user-name,
+            #main-navbar button[onclick="realizarLogout()"] {
+                white-space: nowrap;
+            }
+
+            /* Bandeja de agrupamento dos 5 botões de navegação desktop */
+            #main-navbar .d-none.d-md-flex {
+                background: rgba(0, 0, 0, 0.16);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                border-radius: 12px;
+                padding: 4px;
+                gap: 0.35rem !important;
+                margin-right: 0.25rem !important;
+            }
+
+            /* Padronização de altura, proporção e alinhamento interno dos botões */
+            #main-navbar .d-none.d-md-flex > .btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.42rem;
+                height: 36px;
+                padding: 0 0.9rem !important;
+                border-radius: 8px !important;
+                font-size: 0.81rem;
+                line-height: 1;
+                white-space: nowrap;
+                letter-spacing: 0.01em;
+                transition: background-color 0.2s ease, color 0.2s ease,
+                            border-color 0.2s ease, transform 0.18s ease,
+                            box-shadow 0.2s ease;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn i {
+                margin-right: 0 !important;
+                font-size: 0.82rem;
+            }
+
+            /* Estado de foco acessível usando token da paleta */
+            #main-navbar .d-none.d-md-flex > .btn:focus-visible {
+                outline: none;
+                box-shadow: 0 0 0 2px var(--liturgical-wine-dark),
+                            0 0 0 4px var(--liturgical-gold) !important;
+            }
+
+            /* 1. Botões de navegação inativos (.btn-outline-light) — estilo ghost limpo */
+            #main-navbar .d-none.d-md-flex > .btn-outline-light {
+                background-color: transparent;
+                border: 1px solid transparent;
+                color: rgba(255, 255, 255, 0.88);
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn-outline-light:hover {
+                background-color: rgba(255, 255, 255, 0.12);
+                border-color: rgba(255, 255, 255, 0.2);
+                color: var(--surface-white);
+                transform: translateY(-1px);
+            }
+
+            /* 2. Botão da aba ativa (.btn-light) */
+            #main-navbar .d-none.d-md-flex > .btn-light {
+                background-color: var(--surface-white);
+                border: 1px solid var(--surface-white);
+                color: var(--liturgical-wine-dark);
+                font-weight: 700 !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn-light:hover {
+                background-color: var(--bg-cream);
+                border-color: var(--bg-cream);
+                color: var(--liturgical-wine-dark);
+                transform: translateY(-1px);
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn-light i {
+                color: var(--liturgical-wine) !important;
+            }
+
+            /* Separador visual entre navegação comum e botões de destaque (somente se houver item antes) */
+            #main-navbar .d-none.d-md-flex > .btn:not(.d-none) ~ #nav-btn-escala {
+                margin-left: 0.45rem;
+                position: relative;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn:not(.d-none) ~ #nav-btn-escala::before {
+                content: "";
+                position: absolute;
+                left: -0.4rem;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 1px;
+                height: 20px;
+                background-color: rgba(255, 255, 255, 0.22);
+                pointer-events: none;
+            }
+
+            /* 3. Botão de destaque principal: Ver Escala Geral (.btn-gold) */
+            #nav-btn-escala.btn-gold {
+                background: linear-gradient(135deg, var(--liturgical-gold) 0%, var(--liturgical-gold-hover) 100%);
+                color: var(--text-dark);
+                border: 1px solid rgba(255, 255, 255, 0.22);
+                font-weight: 700;
+                box-shadow: 0 2px 10px rgba(212, 175, 55, 0.28);
+            }
+
+            #nav-btn-escala.btn-gold:hover {
+                background: linear-gradient(135deg, #E2BE46 0%, var(--liturgical-gold) 100%);
+                color: var(--text-dark);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 14px rgba(212, 175, 55, 0.42);
+            }
+
+            /* 4. Botão administrativo: harmonia com vinho + dourado sem competir com .btn-gold */
+            #nav-btn-admin.btn-warning {
+                background: rgba(212, 175, 55, 0.16);
+                color: var(--liturgical-gold-soft);
+                border: 1px solid rgba(212, 175, 55, 0.65);
+                font-weight: 700;
+                box-shadow: none;
+            }
+
+            #nav-btn-admin.btn-warning i {
+                color: var(--liturgical-gold) !important;
+            }
+
+            #nav-btn-admin.btn-warning:hover {
+                background: rgba(212, 175, 55, 0.28);
+                border-color: var(--liturgical-gold);
+                color: var(--surface-white);
+                transform: translateY(-1px);
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+            }
+
+            #nav-badge-admin-pendentes {
+                top: -5px !important;
+                right: -5px !important;
+                left: auto !important;
+                transform: none !important;
+                border: 1.5px solid var(--liturgical-wine-dark);
+            }
+
+            /* Alinhamento da pílula de usuário e do botão Sair com a mesma altura da barra */
+            #main-navbar button[onclick="realizarLogout()"] {
+                height: 36px;
+                display: inline-flex;
+                align-items: center;
+                padding: 0 0.75rem !important;
+                border-radius: 8px !important;
+                border-color: rgba(255, 255, 255, 0.28);
+                transition: all 0.2s ease;
+            }
+
+            #main-navbar button[onclick="realizarLogout()"]:hover {
+                background-color: rgba(255, 255, 255, 0.14);
+                border-color: rgba(255, 255, 255, 0.5);
+                color: var(--surface-white);
+            }
+        }
+
+        /* Ajuste proporcional para notebooks menores (768px a 1199px) evitando aperto */
+        @media (min-width: 768px) and (max-width: 1199.98px) {
+            #main-navbar .crest-circle {
+                width: 42px;
+                height: 42px;
+            }
+
+            #main-navbar .font-liturgical {
+                font-size: 0.82rem !important;
+            }
+
+            #main-navbar .d-none.d-md-flex {
+                gap: 0.25rem !important;
+                padding: 3px;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn {
+                height: 34px;
+                padding: 0 0.6rem !important;
+                font-size: 0.74rem;
+                gap: 0.3rem;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn:not(.d-none) ~ #nav-btn-escala {
+                margin-left: 0.25rem;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn:not(.d-none) ~ #nav-btn-escala::before {
+                left: -0.25rem;
+            }
+        }
+
+        /* Correção de respiro entre o nome do portal e os botões (Desktop / Laptop) */
+        @media (min-width: 768px) {
+            #main-navbar > .container {
+                max-width: 1460px;
+            }
+
+            /* Garante espaçamento mínimo entre o nome do portal e o bloco de botões */
+            #main-navbar > .container > .d-flex {
+                gap: 1.5rem;
+            }
+
+            #main-navbar > .container > .d-flex > div:first-child {
+                flex-shrink: 0;
+            }
+
+            #main-navbar > .container > .d-flex > div:last-child {
+                gap: 0.75rem !important;
+            }
+        }
+
+        /* Calibração fina para notebooks padrão (1200px a 1399px) */
+        @media (min-width: 1200px) and (max-width: 1399.98px) {
+            #main-navbar > .container {
+                max-width: 100%;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            #main-navbar > .container > .d-flex {
+                gap: 1.15rem;
+            }
+
+            #main-navbar .crest-circle {
+                width: 44px;
+                height: 44px;
+            }
+
+            #main-navbar .font-liturgical {
+                font-size: 0.86rem !important;
+            }
+
+            #main-navbar .d-none.d-md-flex {
+                gap: 0.28rem !important;
+                margin-right: 0 !important;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn {
+                padding: 0 0.68rem !important;
+                font-size: 0.77rem;
+                gap: 0.35rem;
+            }
+        }
+
+        /* Calibração para telas intermediárias (768px a 1199px) */
+        @media (min-width: 768px) and (max-width: 1199.98px) {
+            #main-navbar > .container {
+                max-width: 100%;
+                padding-left: 0.85rem;
+                padding-right: 0.85rem;
+            }
+
+            #main-navbar > .container > .d-flex {
+                gap: 0.9rem;
+            }
+
+            #main-navbar > .container > .d-flex > div:last-child {
+                gap: 0.5rem !important;
+            }
+
+            #main-navbar .d-none.d-md-flex {
+                margin-right: 0 !important;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn {
+                padding: 0 0.52rem !important;
+                font-size: 0.72rem;
+            }
+        }
     </style>
 </head>
 <!-- ========================================================================== -->
@@ -983,10 +1266,9 @@
          ========================================================================== -->
     <section id="view-login" class="login-wrapper">
         <div class="login-card">
-            <!-- Cabeçalho Litúrgico com Brasão SVG de São Judas Tadeu -->
             <div class="login-header">
                 <div class="crest-circle">
-                      <img src="img/sao-judas-melhorada-transparente.png" alt="São Judas Tadeu">
+                    <img src="img/sao-judas-melhorada-transparente.png" alt="São Judas Tadeu">
                 </div>
                 <span class="badge bg-warning text-dark fw-bold mb-2 px-3 py-1 rounded-pill" style="font-size: 0.72rem; letter-spacing: 0.8px;">
                     PORTAL DO COROINHA
@@ -994,44 +1276,32 @@
                 <h1 class="h4 font-liturgical fw-bold mb-1">Com. São Judas Tadeu - Maracanaú/Timbó</h1>
             </div>
 
-            <!-- Corpo do Formulário de Login -->
             <div class="p-4 p-sm-4">
-                <!-- Seletor de usuário: Exibe APENAS Nome e Sobrenome (sem menção de cargo/função ou admin) -->
-                <div class="mb-3 p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between">
-                    <span class="small text-muted fw-medium">
+                <div class="mb-3 p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between gap-2">
+                    <span class="small text-muted fw-medium flex-shrink-0">
                         <i class="fa-regular fa-user text-wine me-1"></i> Selecionar usuário:
                     </span>
                     <select id="quick-user-select" class="form-select form-select-sm w-auto fw-semibold text-wine border-0 bg-transparent" onchange="selecionarPerfilTeste(this.value)">
-                        <option value="1">Gabriel Santos</option>
-                        <option value="7">Sofia Ribeiro</option>
-                        <option value="2">Lucas Oliveira</option>
-                        <option value="3">Mariana Costa</option>
-                        <option value="4">Rafael Almeida</option>
-                        <option value="12">Pedro Henrique</option>
+                        <option value="" disabled selected>Carregando usuários...</option>
                     </select>
                 </div>
 
                 <form id="form-login" onsubmit="realizarLogin(event)" novalidate>
                     <div class="mb-3">
                         <label for="login-email" class="form-label small fw-bold text-secondary mb-1">
-                            <i class="fa-regular fa-envelope me-1 text-wine"></i> E-mail de Acesso
+                            <i class="fa-regular fa-envelope me-1 text-wine"></i> E-mail Pessoal de Acesso
                         </label>
                         <input type="email" id="login-email" class="form-control form-control-lg fs-6"
-                               placeholder="seu.nome@saojudas.org.br" value="gabriel.santos@saojudas.org.br" required>
+                               placeholder="seu.email.pessoal@gmail.com" value="" required>
                     </div>
 
                     <div class="mb-3">
-                        <div class="d-flex justify-content-between">
-                            <label for="login-password" class="form-label small fw-bold text-secondary mb-1">
-                                <i class="fa-solid fa-lock me-1 text-wine"></i> Senha
-                            </label>
-                            <span class="small text-wine fw-medium" style="cursor: pointer;" onclick="mostrarToast('Orientação de Senha', 'Para fins de demonstração, qualquer senha preenchida autenticará o acesso.', 'info')">
-                                Esqueceu?
-                            </span>
-                        </div>
+                        <label for="login-password" class="form-label small fw-bold text-secondary mb-1">
+                            <i class="fa-solid fa-lock me-1 text-wine"></i> Senha
+                        </label>
                         <div class="input-group">
                             <input type="password" id="login-password" class="form-control form-control-lg fs-6"
-                                   placeholder="••••••••" value="saojudas2026" required>
+                                   placeholder="Digite sua senha fornecida pela Coordenação" value="" required>
                             <button class="btn btn-outline-secondary" type="button" onclick="alternarVisibilidadeSenha()">
                                 <i id="icon-eye" class="fa-regular fa-eye"></i>
                             </button>
@@ -1046,7 +1316,6 @@
                         <i class="fa-solid fa-right-to-bracket me-2"></i> Entrar
                     </button>
                 </form>
-
             </div>
         </div>
     </section>
@@ -14019,6 +14288,1007 @@ MARIA FERNANDA 30/10</textarea>
             });
         })();
 
+// ============================================================================
+        // CORREÇÃO PONTUAL: PRAZO/BLOQUEIO DO FORMS + USUÁRIOS REAIS NO LOGIN
+        // ============================================================================
+        (function () {
+            const MSG_BLOQUEIO_PADRAO = "O prazo para preenchimento da disponibilidade deste mês foi encerrado. Em caso de urgência, procure a coordenação.";
+            const URLS_API_CANDIDATAS = [
+                "http://127.0.0.1:8000/api",
+                "http://localhost:8000/api"
+            ];
+
+            // Neutraliza função legada da linha 9677 para não sobrescrever o label "Mês e Ano *"
+            window.injetarCampoHorarioLimiteNoConstrutorForms = function () {};
+            injetarCampoHorarioLimiteNoConstrutorForms = window.injetarCampoHorarioLimiteNoConstrutorForms;
+
+            // Evita duplicação de horário ("às 23:59h às 23:59h")
+            window.obterTextoPrazoComHorario = function (cfg) {
+                const dataStr = String(cfg?.prazoLimite || "28/10/2026").trim();
+                const horaStr = String(cfg?.horarioLimite || "").trim();
+                if (!horaStr || dataStr.includes("às")) return dataStr;
+                return `${dataStr} às ${horaStr}h`;
+            };
+            obterTextoPrazoComHorario = window.obterTextoPrazoComHorario;
+
+            function formatarDataSomenteBR(valorISO) {
+                if (!valorISO || !valorISO.includes("T")) return "28/10/2026";
+                const [ano, mes, dia] = valorISO.split("T")[0].split("-");
+                return (ano && mes && dia) ? `${dia}/${mes}/${ano}` : valorISO;
+            }
+
+            function obterDatetimeLocalPadrao(cfg) {
+                if (cfg?.prazoLimiteISO && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(cfg.prazoLimiteISO)) {
+                    return cfg.prazoLimiteISO.slice(0, 16);
+                }
+                const hora = (cfg?.horarioLimite || "23:59").slice(0, 5);
+                return `2026-10-28T${hora}`;
+            }
+
+            function garantirCamposPrazoNaConfig() {
+                if (!configFormularioAtivo) return;
+                if (!configFormularioAtivo.prazoLimiteISO) {
+                    configFormularioAtivo.prazoLimiteISO = obterDatetimeLocalPadrao(configFormularioAtivo);
+                }
+                if (!configFormularioAtivo.mensagemBloqueio) {
+                    configFormularioAtivo.mensagemBloqueio = MSG_BLOQUEIO_PADRAO;
+                }
+                configFormularioAtivo.prazoLimite = formatarDataSomenteBR(configFormularioAtivo.prazoLimiteISO);
+                configFormularioAtivo.horarioLimite = configFormularioAtivo.prazoLimiteISO.split("T")[1]?.slice(0, 5) || "23:59";
+            }
+
+            function formularioEstaExpirado(cfg = configFormularioAtivo) {
+                if (!cfg?.prazoLimiteISO) return false;
+                const ts = new Date(cfg.prazoLimiteISO).getTime();
+                return !isNaN(ts) && Date.now() >= ts;
+            }
+
+            // 1. Preview instantâneo do status (Aberto / Bloqueado) no campo datetime-local
+            window.atualizarPreviewStatusPrazoAdmin = function () {
+                const inputDt = document.getElementById("cfg-form-datetime-limite");
+                const badge = document.getElementById("badge-status-prazo-admin");
+                if (!inputDt) return;
+
+                const valorISO = inputDt.value;
+                const ts = new Date(valorISO).getTime();
+                const expirado = !isNaN(ts) && Date.now() >= ts;
+
+                if (badge) {
+                    badge.className = expirado ? "badge bg-danger" : "badge bg-success";
+                    badge.textContent = expirado ? "Bloqueado" : "Aberto";
+                }
+
+                const hiddenPrazo = document.getElementById("cfg-form-prazo");
+                const hiddenHora = document.getElementById("cfg-form-horario-limite");
+                if (hiddenPrazo) hiddenPrazo.value = formatarDataSomenteBR(valorISO);
+                if (hiddenHora) hiddenHora.value = valorISO.split("T")[1]?.slice(0, 5) || "23:59";
+            };
+
+            // 2. Extensão/atualização de prazo sem apagar ou invalidar respostas já enviadas
+            window.estenderOuAtualizarPrazoSemResetar = async function () {
+                const inputDt = document.getElementById("cfg-form-datetime-limite");
+                const inputMsg = document.getElementById("cfg-form-msg-bloqueio");
+
+                if (!inputDt || !inputDt.value) {
+                    mostrarToast("Atenção", "Selecione uma data e horário válidos no calendário.", "warning");
+                    return;
+                }
+
+                const novoPrazoISO = inputDt.value.slice(0, 16);
+                const novaMensagem = (inputMsg?.value || "").trim() || MSG_BLOQUEIO_PADRAO;
+
+                configFormularioAtivo.prazoLimiteISO = novoPrazoISO;
+                configFormularioAtivo.prazoLimite = formatarDataSomenteBR(novoPrazoISO);
+                configFormularioAtivo.horarioLimite = novoPrazoISO.split("T")[1]?.slice(0, 5) || "23:59";
+                configFormularioAtivo.mensagemBloqueio = novaMensagem;
+
+                localStorage.setItem("saojudas_config_forms", JSON.stringify(configFormularioAtivo));
+
+                try {
+                    await apiFetch("/disponibilidade/config", {
+                        method: "POST",
+                        body: JSON.stringify(configFormularioAtivo)
+                    });
+                } catch (e) {}
+
+                window.atualizarPreviewStatusPrazoAdmin();
+                verificarEAplicarBloqueioPorPrazo();
+                window.atualizarBadgeDisponibilidadeDashboard();
+
+                const reaberto = !formularioEstaExpirado(configFormularioAtivo);
+                const prazoExibicao = obterTextoPrazoComHorario(configFormularioAtivo);
+                mostrarToast(
+                    reaberto ? "Prazo Estendido / Formulário Reaberto" : "Prazo Atualizado",
+                    `Novo limite: ${prazoExibicao}. Todas as ${disponibilidadesDB.length} resposta(s) anteriores foram preservadas.`,
+                    "success"
+                );
+            };
+
+            // 3. Bloqueio automático do formulário (#view-disponibilidade) ao atingir data/hora limite
+            function verificarEAplicarBloqueioPorPrazo() {
+                garantirCamposPrazoNaConfig();
+
+                const formEl = document.getElementById("form-disponibilidade-novembro");
+                const badgePrazoTopo = document.getElementById("status-envio-disponibilidade");
+                const expirado = formularioEstaExpirado(configFormularioAtivo);
+                const prazoTexto = obterTextoPrazoComHorario(configFormularioAtivo);
+
+                if (badgePrazoTopo) {
+                    if (expirado) {
+                        badgePrazoTopo.className = "badge bg-danger text-white px-3 py-2 rounded-pill";
+                        badgePrazoTopo.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Encerrado em ${prazoTexto}`;
+                    } else {
+                        badgePrazoTopo.className = "badge bg-warning text-dark px-3 py-2 rounded-pill";
+                        badgePrazoTopo.innerHTML = `<i class="fa-regular fa-clock me-1"></i> Prazo limite: ${prazoTexto}`;
+                    }
+                }
+
+                window.atualizarBadgeDisponibilidadeDashboard();
+
+                if (!formEl) return;
+
+                let cardBloqueio = document.getElementById("card-aviso-formulario-bloqueado");
+                if (!cardBloqueio) {
+                    cardBloqueio = document.createElement("div");
+                    cardBloqueio.id = "card-aviso-formulario-bloqueado";
+                    formEl.insertAdjacentElement("beforebegin", cardBloqueio);
+                }
+
+                if (expirado) {
+                    const msgAdmin = configFormularioAtivo.mensagemBloqueio || MSG_BLOQUEIO_PADRAO;
+                    formEl.classList.add("d-none");
+                    cardBloqueio.className = "forms-question-card border-danger text-center p-4 my-3";
+                    cardBloqueio.style.borderLeft = "5px solid #DC2626";
+                    cardBloqueio.innerHTML = `
+                        <div class="rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3" style="width: 52px; height: 52px;">
+                            <i class="fa-solid fa-lock fs-4"></i>
+                        </div>
+                        <h5 class="h6 fw-bold text-dark mb-2">Formulário Indisponível</h5>
+                        <p class="small text-dark fw-semibold mb-2 px-md-4">${msgAdmin}</p>
+                        <small class="text-muted d-block">
+                            Encerrado em: <strong>${prazoTexto}</strong>
+                        </small>
+                    `;
+                } else {
+                    cardBloqueio.className = "d-none";
+                    cardBloqueio.innerHTML = "";
+                    formEl.classList.remove("d-none");
+                }
+            }
+
+            // 4. Proteção segura do badge de disponibilidade no Dashboard (evita erro se d.email vier vazio)
+            window.atualizarBadgeDisponibilidadeDashboard = function () {
+                const badge = document.getElementById("badge-status-disp-dashboard");
+                if (!badge || !usuarioLogado) return;
+
+                const emailLogado = String(usuarioLogado.email || "").toLowerCase();
+                const jaEnviou = Array.isArray(disponibilidadesDB) && disponibilidadesDB.some(d =>
+                    Number(d.coroinhaId || d.coroinha_id) === Number(usuarioLogado.id) ||
+                    (emailLogado && String(d.email || "").toLowerCase() === emailLogado)
+                );
+
+                if (jaEnviou) {
+                    badge.className = "badge bg-success text-white";
+                    badge.innerHTML = `<i class="fa-solid fa-check me-1"></i>Enviado`;
+                } else if (formularioEstaExpirado(configFormularioAtivo)) {
+                    badge.className = "badge bg-danger text-white";
+                    badge.textContent = "Encerrado";
+                } else {
+                    badge.className = "badge bg-warning text-dark";
+                    badge.textContent = `Até ${configFormularioAtivo?.prazoLimite || "28/10"}`;
+                }
+            };
+            atualizarBadgeDisponibilidadeDashboard = window.atualizarBadgeDisponibilidadeDashboard;
+
+            // 5. Intercepta publicação do Forms e envio do Coroinha para garantir persistência e bloqueio
+            const _salvarFormsAnt = window.salvarEPublicarConfiguracaoFormsAdmin;
+            window.salvarEPublicarConfiguracaoFormsAdmin = async function () {
+                const inputDt = document.getElementById("cfg-form-datetime-limite");
+                const inputMsg = document.getElementById("cfg-form-msg-bloqueio");
+
+                const prazoISO = inputDt?.value ? inputDt.value.slice(0, 16) : obterDatetimeLocalPadrao(configFormularioAtivo);
+                const msgBloqueio = (inputMsg?.value || "").trim() || MSG_BLOQUEIO_PADRAO;
+                const dataFormatada = formatarDataSomenteBR(prazoISO);
+                const horaFormatada = prazoISO.split("T")[1]?.slice(0, 5) || "23:59";
+
+                const hiddenPrazo = document.getElementById("cfg-form-prazo");
+                const hiddenHora = document.getElementById("cfg-form-horario-limite");
+                if (hiddenPrazo) hiddenPrazo.value = dataFormatada;
+                if (hiddenHora) hiddenHora.value = horaFormatada;
+
+                if (typeof _salvarFormsAnt === "function") {
+                    await _salvarFormsAnt();
+                }
+
+                configFormularioAtivo.prazoLimiteISO = prazoISO;
+                configFormularioAtivo.prazoLimite = dataFormatada;
+                configFormularioAtivo.horarioLimite = horaFormatada;
+                configFormularioAtivo.mensagemBloqueio = msgBloqueio;
+
+                localStorage.setItem("saojudas_config_forms", JSON.stringify(configFormularioAtivo));
+                try {
+                    await apiFetch("/disponibilidade/config", {
+                        method: "POST",
+                        body: JSON.stringify(configFormularioAtivo)
+                    });
+                } catch (e) {}
+
+                verificarEAplicarBloqueioPorPrazo();
+                window.atualizarPreviewStatusPrazoAdmin();
+            };
+            salvarEPublicarConfiguracaoFormsAdmin = window.salvarEPublicarConfiguracaoFormsAdmin;
+
+            const _salvarDispAnt = window.salvarDisponibilidadeNovembro;
+            window.salvarDisponibilidadeNovembro = async function (event) {
+                if (event) event.preventDefault();
+                if (formularioEstaExpirado(configFormularioAtivo)) {
+                    verificarEAplicarBloqueioPorPrazo();
+                    mostrarToast("Formulário Bloqueado", configFormularioAtivo.mensagemBloqueio || MSG_BLOQUEIO_PADRAO, "warning");
+                    return;
+                }
+                if (typeof _salvarDispAnt === "function") {
+                    await _salvarDispAnt(event);
+                }
+            };
+            salvarDisponibilidadeNovembro = window.salvarDisponibilidadeNovembro;
+
+            const _atualizarInterfaceDispAnt = window.atualizarInterfaceFormularioDisponibilidade;
+            window.atualizarInterfaceFormularioDisponibilidade = function () {
+                garantirCamposPrazoNaConfig();
+                if (typeof _atualizarInterfaceDispAnt === "function") {
+                    _atualizarInterfaceDispAnt();
+                }
+                verificarEAplicarBloqueioPorPrazo();
+            };
+            atualizarInterfaceFormularioDisponibilidade = window.atualizarInterfaceFormularioDisponibilidade;
+
+            // 6. Carregamento garantido dos usuários reais do banco na tela de Login
+            async function carregarUsuariosReaisNoLogin() {
+                const selectLogin = document.getElementById("quick-user-select");
+                const inputEmail = document.getElementById("login-email");
+                const inputSenha = document.getElementById("login-password");
+
+                if (inputEmail && inputEmail.value === "gabriel.santos@saojudas.org.br") inputEmail.value = "";
+                if (inputSenha && inputSenha.value === "saojudas2026") inputSenha.value = "";
+
+                let membrosBanco = null;
+                for (const baseUrl of URLS_API_CANDIDATAS) {
+                    try {
+                        const resp = await fetch(`${baseUrl}/membros/`, {
+                            method: "GET",
+                            headers: { "Content-Type": "application/json" }
+                        });
+                        if (resp.ok) {
+                            const lista = await resp.json();
+                            if (Array.isArray(lista) && lista.length > 0) {
+                                membrosBanco = lista;
+                                break;
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                if (!membrosBanco) {
+                    if (selectLogin) {
+                        selectLogin.innerHTML = `<option value="" disabled selected>Servidor FastAPI desconectado (porta 8000)</option>`;
+                    }
+                    return;
+                }
+
+                coroinhasDB.length = 0;
+                membrosBanco.forEach(m => {
+                    coroinhasDB.push({
+                        ...m,
+                        isAdmin: Boolean(m.is_admin || m.isAdmin || String(m.papel || "").includes("Coordenação"))
+                    });
+                });
+
+                const visiveis = coroinhasDB
+                    .filter(m => String(m.nome || "").toLowerCase() !== "consertar")
+                    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+                if (selectLogin && visiveis.length > 0) {
+                    selectLogin.innerHTML =
+                        `<option value="" disabled selected>Selecione seu usuário (${visiveis.length})...</option>` +
+                        visiveis.map(m => `<option value="${m.id}">${m.nome}</option>`).join("");
+                }
+            }
+
+            window.selecionarPerfilTeste = function (coroinhaId) {
+                const membro = (coroinhasDB || []).find(c => Number(c.id) === parseInt(coroinhaId, 10));
+                const inputEmail = document.getElementById("login-email");
+                const inputSenha = document.getElementById("login-password");
+                if (membro && inputEmail) inputEmail.value = membro.email || "";
+                if (inputSenha) {
+                    inputSenha.value = "";
+                    inputSenha.focus();
+                }
+            };
+            selecionarPerfilTeste = window.selecionarPerfilTeste;
+
+            const _logoutAnt = window.realizarLogout;
+            window.realizarLogout = function () {
+                if (typeof _logoutAnt === "function") _logoutAnt();
+                carregarUsuariosReaisNoLogin();
+            };
+            realizarLogout = window.realizarLogout;
+
+            // Monitora o relógio a cada 15 segundos para bloquear automaticamente no horário limite
+            setInterval(verificarEAplicarBloqueioPorPrazo, 15000);
+
+            window.addEventListener("DOMContentLoaded", () => {
+                carregarUsuariosReaisNoLogin();
+                setTimeout(() => {
+                    garantirCamposPrazoNaConfig();
+                    verificarEAplicarBloqueioPorPrazo();
+                }, 550);
+            });
+        })();
+
+        // ============================================================================
+        // REFATORAÇÃO VISUAL E DE USABILIDADE: ABA ACESSOS (#admin-pane-credenciais)
+        // Layout compacto, busca com filtro por papel e overflow horizontal controlado
+        // ============================================================================
+        (function () {
+            const NOMES_COORD_E_CERIM = ["KAIKY DINIZ", "MARIA ALICE"];
+            const NOMES_SOMENTE_COORD = ["VERIANE", "ROBERTA"];
+            let filtroPapelAcessos = "TODOS";
+
+            function normalizarTextoBusca(valor) {
+                return String(valor || "")
+                    .trim()
+                    .toLowerCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "");
+            }
+
+            function injetarEstilosAcessosCompacto() {
+                // Remove o estilo antigo que explodia cada linha em um cartão vertical longo no mobile
+                document.getElementById("estilo-fix-credenciais-mobile")?.remove();
+                document.getElementById("estilos-acessos-compacto")?.remove();
+
+                const style = document.createElement("style");
+                style.id = "estilos-acessos-compacto";
+                style.innerHTML = `
+                    /* Container principal alinhado à paleta litúrgica */
+                    #admin-pane-credenciais .acessos-shell {
+                        background: var(--surface-white);
+                        border: 1px solid var(--border-warm);
+                        border-top: 4px solid var(--liturgical-wine);
+                        border-radius: var(--radius-card);
+                        box-shadow: var(--shadow-soft);
+                        overflow: hidden;
+                    }
+
+                    /* Cabeçalho enxuto */
+                    #admin-pane-credenciais .acessos-header {
+                        background: var(--surface-white);
+                        padding: 0.85rem 1rem;
+                        border-bottom: 1px solid var(--border-warm);
+                        display: flex;
+                        flex-wrap: wrap;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 0.65rem;
+                    }
+
+                    #admin-pane-credenciais .acessos-header-actions {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.45rem;
+                        flex-wrap: nowrap;
+                        overflow-x: auto;
+                        scrollbar-width: thin;
+                        -webkit-overflow-scrolling: touch;
+                    }
+
+                    #admin-pane-credenciais .acessos-header-actions .btn {
+                        white-space: nowrap;
+                        font-size: 0.78rem;
+                        padding: 0.4rem 0.75rem;
+                        border-radius: 8px;
+                    }
+
+                    /* Bloco recolhível de cadastro de novo usuário */
+                    #box-cadastro-novo-usuario-aba7.acessos-cadastro-box {
+                        background: var(--bg-cream);
+                        border-bottom: 1px solid var(--border-warm);
+                        padding: 0.85rem 1rem;
+                    }
+
+                    #box-cadastro-novo-usuario-aba7.acessos-cadastro-box .form-control,
+                    #box-cadastro-novo-usuario-aba7.acessos-cadastro-box .form-select {
+                        font-size: 0.82rem !important;
+                        min-height: 36px;
+                        border-color: var(--border-warm);
+                        border-radius: 8px;
+                    }
+
+                    /* Barra de busca + filtros de papel */
+                    #admin-pane-credenciais .acessos-toolbar {
+                        background: #FDFBF8;
+                        border-bottom: 1px solid var(--border-warm);
+                        padding: 0.7rem 1rem;
+                        display: flex;
+                        flex-wrap: wrap;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 0.6rem;
+                    }
+
+                    #admin-pane-credenciais .acessos-search-wrap {
+                        position: relative;
+                        flex: 1 1 240px;
+                        max-width: 380px;
+                    }
+
+                    #admin-pane-credenciais .acessos-search-wrap .fa-magnifying-glass {
+                        position: absolute;
+                        left: 0.7rem;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        color: var(--text-muted);
+                        font-size: 0.78rem;
+                        pointer-events: none;
+                    }
+
+                    #admin-pane-credenciais #filtro-busca-credenciais {
+                        padding-left: 2rem !important;
+                        padding-right: 2rem !important;
+                        height: 36px !important;
+                        font-size: 0.83rem !important;
+                        border-radius: 8px !important;
+                        border: 1px solid var(--border-warm) !important;
+                        background: var(--surface-white) !important;
+                    }
+
+                    #admin-pane-credenciais .btn-limpar-busca-acessos {
+                        position: absolute;
+                        right: 0.45rem;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        border: none;
+                        background: transparent;
+                        color: var(--text-muted);
+                        padding: 0.15rem 0.35rem;
+                        font-size: 0.78rem;
+                        cursor: pointer;
+                    }
+
+                    #admin-pane-credenciais .btn-limpar-busca-acessos:hover {
+                        color: var(--liturgical-wine);
+                    }
+
+                    /* Pílulas de filtro por papel com rolagem horizontal controlada */
+                    #admin-pane-credenciais .acessos-role-pills {
+                        display: flex;
+                        flex-wrap: nowrap;
+                        align-items: center;
+                        gap: 0.35rem;
+                        overflow-x: auto;
+                        max-width: 100%;
+                        padding-bottom: 2px;
+                        scrollbar-width: thin;
+                        -webkit-overflow-scrolling: touch;
+                    }
+
+                    #admin-pane-credenciais .acessos-role-pill {
+                        border: 1px solid var(--border-warm);
+                        background: var(--surface-white);
+                        color: var(--text-muted);
+                        font-size: 0.75rem;
+                        font-weight: 600;
+                        padding: 0.32rem 0.7rem;
+                        border-radius: 50rem;
+                        white-space: nowrap;
+                        flex-shrink: 0;
+                        transition: all 0.15s ease;
+                    }
+
+                    #admin-pane-credenciais .acessos-role-pill:hover {
+                        border-color: var(--liturgical-wine);
+                        color: var(--liturgical-wine);
+                    }
+
+                    #admin-pane-credenciais .acessos-role-pill.active {
+                        background: var(--liturgical-wine);
+                        border-color: var(--liturgical-wine);
+                        color: var(--surface-white);
+                    }
+
+                    /* Dica sutil de rolagem lateral (visível apenas em telas menores) */
+                    #admin-pane-credenciais .acessos-scroll-hint {
+                        display: none;
+                        background: var(--liturgical-gold-soft);
+                        border-bottom: 1px solid var(--border-warm);
+                        color: var(--text-muted);
+                        font-size: 0.72rem;
+                        padding: 0.35rem 1rem;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 0.5rem;
+                    }
+
+                    /* Área da tabela com rolagem horizontal e vertical controladas */
+                    #admin-pane-credenciais .acessos-table-scroll {
+                        width: 100%;
+                        overflow-x: auto !important;
+                        overflow-y: auto !important;
+                        max-height: 62vh;
+                        -webkit-overflow-scrolling: touch;
+                        scrollbar-width: thin;
+                        scrollbar-color: var(--liturgical-wine) var(--bg-cream);
+                    }
+
+                    #admin-pane-credenciais .acessos-table-scroll::-webkit-scrollbar {
+                        height: 8px;
+                        width: 7px;
+                    }
+
+                    #admin-pane-credenciais .acessos-table-scroll::-webkit-scrollbar-track {
+                        background: var(--bg-cream);
+                    }
+
+                    #admin-pane-credenciais .acessos-table-scroll::-webkit-scrollbar-thumb {
+                        background-color: rgba(124, 29, 38, 0.45);
+                        border-radius: 999px;
+                    }
+
+                    #admin-pane-credenciais .acessos-table-scroll::-webkit-scrollbar-thumb:hover {
+                        background-color: var(--liturgical-wine);
+                    }
+
+                    /* Tabela compacta e estruturada tanto no Desktop quanto no Mobile */
+                    #tabela-controle-credenciais {
+                        width: 100% !important;
+                        min-width: 790px !important;
+                        border-collapse: separate !important;
+                        border-spacing: 0 !important;
+                        margin: 0 !important;
+                    }
+
+                    #tabela-controle-credenciais thead {
+                        display: table-header-group !important;
+                    }
+
+                    #tabela-controle-credenciais thead th {
+                        position: sticky;
+                        top: 0;
+                        z-index: 3;
+                        background: var(--bg-cream) !important;
+                        color: var(--text-dark) !important;
+                        font-size: 0.7rem !important;
+                        font-weight: 700 !important;
+                        text-transform: uppercase;
+                        letter-spacing: 0.04em;
+                        padding: 0.6rem 0.65rem !important;
+                        border-bottom: 1.5px solid var(--border-warm) !important;
+                        white-space: nowrap;
+                    }
+
+                    #tbody-admin-credenciais tr {
+                        display: table-row !important;
+                        background: var(--surface-white) !important;
+                        border: none !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        box-shadow: none !important;
+                    }
+
+                    #tbody-admin-credenciais tr:hover td {
+                        background-color: #FCF9F4 !important;
+                    }
+
+                    #tbody-admin-credenciais td {
+                        display: table-cell !important;
+                        width: auto !important;
+                        vertical-align: middle !important;
+                        padding: 0.42rem 0.6rem !important;
+                        border-bottom: 1px solid #F0E8DE !important;
+                        background: var(--surface-white);
+                    }
+
+                    #tbody-admin-credenciais td::before {
+                        display: none !important;
+                        content: none !important;
+                    }
+
+                    /* Coluna 1 (Usuário) fixada à esquerda durante a rolagem horizontal */
+                    #tabela-controle-credenciais th:first-child,
+                    #tbody-admin-credenciais td:first-child {
+                        position: sticky;
+                        left: 0;
+                        z-index: 2;
+                        min-width: 175px;
+                        max-width: 210px;
+                        box-shadow: 2px 0 6px rgba(43, 33, 34, 0.05);
+                    }
+
+                    #tabela-controle-credenciais thead th:first-child {
+                        z-index: 4;
+                    }
+
+                    #tabela-controle-credenciais td:nth-child(2) { min-width: 205px; }
+                    #tabela-controle-credenciais td:nth-child(3) { min-width: 155px; }
+                    #tabela-controle-credenciais td:nth-child(4) { min-width: 145px; }
+                    #tabela-controle-credenciais td:nth-child(5) { min-width: 112px; }
+
+                    /* Inputs compactos e alinhados */
+                    #tbody-admin-credenciais .form-control,
+                    #tbody-admin-credenciais .form-select {
+                        height: 32px !important;
+                        min-height: 32px !important;
+                        padding: 0.2rem 0.5rem !important;
+                        font-size: 0.8rem !important;
+                        border-color: var(--border-warm) !important;
+                        border-radius: 6px !important;
+                        background-color: #FFFFFF !important;
+                    }
+
+                    #tbody-admin-credenciais .input-group {
+                        display: flex !important;
+                        flex-wrap: nowrap !important;
+                    }
+
+                    #tbody-admin-credenciais .input-group .btn {
+                        height: 32px !important;
+                        width: 32px !important;
+                        padding: 0 !important;
+                        display: inline-flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        border-color: var(--border-warm) !important;
+                    }
+
+                    #tbody-admin-credenciais .acessos-row-actions {
+                        display: inline-flex !important;
+                        align-items: center;
+                        justify-content: flex-end;
+                        gap: 0.3rem;
+                        white-space: nowrap;
+                    }
+
+                    #tbody-admin-credenciais .acessos-row-actions .btn {
+                        height: 32px !important;
+                        min-height: 32px !important;
+                        padding: 0 0.55rem !important;
+                        font-size: 0.76rem !important;
+                        border-radius: 6px !important;
+                        display: inline-flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        width: auto !important;
+                    }
+
+                    /* Rodapé informativo */
+                    #admin-pane-credenciais .acessos-footer {
+                        background: var(--bg-cream);
+                        border-top: 1px solid var(--border-warm);
+                        padding: 0.5rem 1rem;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        font-size: 0.75rem;
+                        color: var(--text-muted);
+                    }
+
+                    /* Ajustes específicos para Mobile (< 768px) */
+                    @media (max-width: 767.98px) {
+                        #admin-pane-credenciais .acessos-header {
+                            padding: 0.75rem 0.85rem;
+                        }
+
+                        #admin-pane-credenciais .acessos-header-actions {
+                            width: 100%;
+                        }
+
+                        #admin-pane-credenciais .acessos-header-actions .btn {
+                            flex: 1 1 auto;
+                        }
+
+                        #admin-pane-credenciais .acessos-toolbar {
+                            padding: 0.65rem 0.85rem;
+                        }
+
+                        #admin-pane-credenciais .acessos-search-wrap {
+                            max-width: 100%;
+                            flex: 1 1 100%;
+                        }
+
+                        #admin-pane-credenciais .acessos-scroll-hint {
+                            display: flex;
+                        }
+
+                        #admin-pane-credenciais .acessos-table-scroll {
+                            max-height: 56vh;
+                        }
+
+                        #tabela-controle-credenciais th:first-child,
+                        #tbody-admin-credenciais td:first-child {
+                            min-width: 140px;
+                            max-width: 150px;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            window.alternarCadastroNovoUsuarioAcessos = function () {
+                const box = document.getElementById("box-cadastro-novo-usuario-aba7");
+                const btn = document.getElementById("btn-toggle-novo-usuario-acessos");
+                if (!box) return;
+
+                const ficouOculto = box.classList.toggle("d-none");
+                if (btn) {
+                    btn.className = ficouOculto
+                        ? "btn btn-sm btn-wine fw-semibold"
+                        : "btn btn-sm btn-outline-wine fw-semibold";
+                    btn.innerHTML = ficouOculto
+                        ? `<i class="fa-solid fa-user-plus me-1"></i> Novo Usuário`
+                        : `<i class="fa-solid fa-xmark me-1"></i> Fechar Cadastro`;
+                }
+                if (!ficouOculto) {
+                    document.getElementById("novo-membro-nome")?.focus();
+                }
+            };
+
+            window.definirFiltroPapelAcessos = function (papel) {
+                filtroPapelAcessos = papel;
+                document.querySelectorAll("#admin-pane-credenciais .acessos-role-pill").forEach(btn => {
+                    btn.classList.toggle("active", btn.dataset.papel === papel);
+                });
+                window.renderizarTabelaCredenciaisAdmin();
+            };
+
+            window.limparBuscaAcessos = function () {
+                const input = document.getElementById("filtro-busca-credenciais");
+                if (input) {
+                    input.value = "";
+                    input.focus();
+                }
+                window.renderizarTabelaCredenciaisAdmin();
+            };
+
+            function refatorarEstruturaPainelAcessos() {
+                const pane = document.getElementById("admin-pane-credenciais");
+                if (!pane || pane.dataset.layoutCompacto === "true") return;
+
+                pane.dataset.layoutCompacto = "true";
+                pane.innerHTML = `
+                    <div class="acessos-shell mb-4">
+                        <!-- Cabeçalho Compacto -->
+                        <div class="acessos-header">
+                            <div class="d-flex align-items-center gap-2">
+                                <h5 class="h6 fw-bold mb-0 text-wine">Controle de Acessos</h5>
+                                <span id="badge-contador-acessos" class="badge rounded-pill bg-light text-dark border" style="font-size: 0.72rem;">
+                                    0 perfis
+                                </span>
+                            </div>
+
+                            <div class="acessos-header-actions">
+                                <button type="button" id="btn-toggle-novo-usuario-acessos"
+                                        class="btn btn-sm btn-wine fw-semibold"
+                                        onclick="window.alternarCadastroNovoUsuarioAcessos()">
+                                    <i class="fa-solid fa-user-plus me-1"></i> Novo Usuário
+                                </button>
+                                <button type="button" class="btn btn-sm btn-gold fw-bold"
+                                        onclick="gerarSenhasIndividuaisParaTodosAdmin()">
+                                    <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Gerar Senhas
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Cadastro Recolhível (Mesmos IDs e onsubmit originais) -->
+                        <div id="box-cadastro-novo-usuario-aba7" class="acessos-cadastro-box d-none">
+                            <form class="row g-2 align-items-center" onsubmit="adicionarNovoMembroAdmin(event)">
+                                <div class="col-12 col-md-3">
+                                    <input type="text" id="novo-membro-nome" class="form-control form-control-sm"
+                                           placeholder="Nome completo *" required>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <input type="email" id="novo-membro-email" class="form-control form-control-sm"
+                                           placeholder="E-mail pessoal *" required>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <input type="text" id="novo-membro-senha" class="form-control form-control-sm fw-bold text-wine"
+                                           placeholder="Senha inicial *" required>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <select id="novo-membro-papel" class="form-select form-select-sm fw-semibold" required>
+                                        <option value="Coroinha">Coroinha</option>
+                                        <option value="Cerimoniário">Cerimoniário</option>
+                                        <option value="Coordenação / Cerimoniário">Coordenação / Cerimoniário</option>
+                                        <option value="Coordenação">Somente Coordenação</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-2 d-grid">
+                                    <button type="submit" class="btn btn-sm btn-wine fw-bold" style="height: 36px;">
+                                        <i class="fa-solid fa-plus me-1"></i> Incluir
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Barra de Busca + Filtro Rápido por Papel -->
+                        <div class="acessos-toolbar">
+                            <div class="acessos-search-wrap">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="filtro-busca-credenciais" class="form-control form-control-sm"
+                                       placeholder="Buscar por nome, e-mail ou papel..."
+                                       oninput="renderizarTabelaCredenciaisAdmin()">
+                                <button type="button" id="btn-limpar-busca-acessos"
+                                        class="btn-limpar-busca-acessos d-none"
+                                        onclick="window.limparBuscaAcessos()" title="Limpar busca">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+
+                            <div class="acessos-role-pills" role="group" aria-label="Filtrar por papel">
+                                <button type="button" class="acessos-role-pill active" data-papel="TODOS"
+                                        onclick="window.definirFiltroPapelAcessos('TODOS')">Todos</button>
+                                <button type="button" class="acessos-role-pill" data-papel="Coroinha"
+                                        onclick="window.definirFiltroPapelAcessos('Coroinha')">Coroinha</button>
+                                <button type="button" class="acessos-role-pill" data-papel="Cerimoniário"
+                                        onclick="window.definirFiltroPapelAcessos('Cerimoniário')">Cerimoniário</button>
+                                <button type="button" class="acessos-role-pill" data-papel="Coordenação"
+                                        onclick="window.definirFiltroPapelAcessos('Coordenação')">Coordenação</button>
+                            </div>
+                        </div>
+
+                        <!-- Dica Mobile de Rolagem Lateral -->
+                        <div class="acessos-scroll-hint">
+                            <span><i class="fa-solid fa-arrows-left-right text-wine me-1"></i>Deslize a tabela para o lado para editar e-mail, papel e senha</span>
+                        </div>
+
+                        <!-- Tabela Compacta com Rolagem Lateral e Vertical Controladas -->
+                        <div class="acessos-table-scroll">
+                            <table class="table align-middle mb-0 small" id="tabela-controle-credenciais">
+                                <thead>
+                                    <tr>
+                                        <th>Usuário</th>
+                                        <th>E-mail Pessoal</th>
+                                        <th>Papel</th>
+                                        <th>Senha</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-admin-credenciais"></tbody>
+                            </table>
+                        </div>
+
+                        <div class="acessos-footer">
+                            <span id="texto-resumo-acessos">Carregando perfis...</span>
+                            <span class="d-none d-sm-inline">Alterações salvas individualmente por linha</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Renderização compacta preservando integralmente regras, IDs e handlers
+            window.renderizarTabelaCredenciaisAdmin = function () {
+                refatorarEstruturaPainelAcessos();
+
+                const tbody = document.getElementById("tbody-admin-credenciais");
+                if (!tbody) return;
+
+                const inputBusca = document.getElementById("filtro-busca-credenciais");
+                const termoRaw = (inputBusca?.value || "").trim();
+                const termo = normalizarTextoBusca(termoRaw);
+
+                document.getElementById("btn-limpar-busca-acessos")?.classList.toggle("d-none", termoRaw === "");
+
+                const todos = Array.isArray(listaCredenciaisAdmin) ? listaCredenciaisAdmin : [];
+
+                const filtrados = todos.filter(u => {
+                    const nomeUpper = String(u.nome || "").trim().toUpperCase();
+                    const papelEfetivo = NOMES_COORD_E_CERIM.includes(nomeUpper)
+                        ? "Coordenação / Cerimoniário"
+                        : (NOMES_SOMENTE_COORD.includes(nomeUpper) ? "Coordenação" : (u.papel || "Coroinha"));
+
+                    const matchTexto = !termo ||
+                        normalizarTextoBusca(u.nome).includes(termo) ||
+                        normalizarTextoBusca(u.email).includes(termo) ||
+                        normalizarTextoBusca(papelEfetivo).includes(termo);
+
+                    let matchPapel = true;
+                    if (filtroPapelAcessos === "Coroinha") {
+                        matchPapel = papelEfetivo === "Coroinha";
+                    } else if (filtroPapelAcessos === "Cerimoniário") {
+                        matchPapel = papelEfetivo.includes("Cerimoniário");
+                    } else if (filtroPapelAcessos === "Coordenação") {
+                        matchPapel = papelEfetivo.includes("Coordenação");
+                    }
+
+                    return matchTexto && matchPapel;
+                });
+
+                const badgeCont = document.getElementById("badge-contador-acessos");
+                const resumoFooter = document.getElementById("texto-resumo-acessos");
+                if (badgeCont) badgeCont.textContent = `${filtrados.length} de ${todos.length}`;
+                if (resumoFooter) {
+                    resumoFooter.textContent = filtrados.length === todos.length
+                        ? `Exibindo todos os ${todos.length} perfis`
+                        : `Exibindo ${filtrados.length} de ${todos.length} perfis filtrados`;
+                }
+
+                if (filtrados.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                Nenhum perfil encontrado para o filtro aplicado.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = filtrados.map(u => {
+                    const nomeUpper = String(u.nome || "").trim().toUpperCase();
+                    const papelAtual = NOMES_COORD_E_CERIM.includes(nomeUpper)
+                        ? "Coordenação / Cerimoniário"
+                        : (NOMES_SOMENTE_COORD.includes(nomeUpper) ? "Coordenação" : u.papel);
+
+                    return `
+                        <tr id="row-cred-${u.id}">
+                            <td>
+                                <input type="text" id="cred-nome-${u.id}" class="form-control form-control-sm fw-bold text-dark" value="${u.nome}">
+                            </td>
+                            <td>
+                                <input type="email" id="cred-email-${u.id}" class="form-control form-control-sm" value="${u.email}">
+                            </td>
+                            <td>
+                                <select id="cred-papel-${u.id}" class="form-select form-select-sm fw-semibold">
+                                    <option value="Coroinha" ${papelAtual === "Coroinha" ? "selected" : ""}>Coroinha</option>
+                                    <option value="Cerimoniário" ${papelAtual === "Cerimoniário" ? "selected" : ""}>Cerimoniário</option>
+                                    <option value="Coordenação / Cerimoniário" ${papelAtual === "Coordenação / Cerimoniário" ? "selected" : ""}>Coordenação / Cerimoniário</option>
+                                    <option value="Coordenação" ${papelAtual === "Coordenação" ? "selected" : ""}>Somente Coordenação</option>
+                                </select>
+                            </td>
+                            <td>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" id="cred-senha-${u.id}" class="form-control fw-bold text-wine" value="${u.senha_visivel || ''}">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="gerarSenhaAleatoriaLinha(${u.id})" title="Gerar senha aleatória">
+                                        <i class="fa-solid fa-key"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                <div class="acessos-row-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-wine" onclick="copiarAcessoMembroWhatsApp(${u.id})" title="Copiar credenciais">
+                                        <i class="fa-regular fa-copy"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-success fw-bold" onclick="salvarCredenciaisMembroAdmin(${u.id})">
+                                        Salvar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+            };
+            renderizarTabelaCredenciaisAdmin = window.renderizarTabelaCredenciaisAdmin;
+
+            const _alternarAbaAcessosAnt = window.alternarAbaAdmin;
+            window.alternarAbaAdmin = function (aba) {
+                if (typeof _alternarAbaAcessosAnt === "function") _alternarAbaAcessosAnt(aba);
+                if (aba === "credenciais") {
+                    injetarEstilosAcessosCompacto();
+                    refatorarEstruturaPainelAcessos();
+                }
+            };
+            alternarAbaAdmin = window.alternarAbaAdmin;
+
+            window.addEventListener("DOMContentLoaded", () => {
+                injetarEstilosAcessosCompacto();
+                setTimeout(() => {
+                    injetarEstilosAcessosCompacto();
+                    refatorarEstruturaPainelAcessos();
+                    if (Array.isArray(listaCredenciaisAdmin) && listaCredenciaisAdmin.length > 0) {
+                        window.renderizarTabelaCredenciaisAdmin();
+                    }
+                }, 520);
+            });
+        })();
     </script>
 </body>
 </html>  
