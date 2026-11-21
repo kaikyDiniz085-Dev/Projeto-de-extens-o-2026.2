@@ -1,7 +1,7 @@
 {
   "mesAnoTitulo": "NOVEMBRO/2026",
   "mesAnoCurto": "Nov/26",
-  "prazoLimite": "28/10/2026",
+  "prazoLimite": "30/10/2026",
   "avisoTitulo": "Santa missa aos fiéis defuntos:",
   "avisoTexto": "Será dia 02/11. Ainda não foi informado o horário da Santa missa, mas no decorrer da semana ou na própria escala será informado o horário oficial.",
   "avisos": [
@@ -234,7 +234,7 @@
       "liturgia": "1 domingo do advento"
     }
   ],
-  "prazoLimiteISO": "2026-10-28T23:59",
+  "prazoLimiteISO": "2026-10-30T23:59",
   "mensagemBloqueio": "O prazo para preenchimento da disponibilidade deste mês foi encerrado. \nAguarde a abertura deste formulário para as disponibilidades do mês de dezembro.\nEm caso de dúvidas, procure a coordenação.",
   "horarioLimite": "23:59"
 }
