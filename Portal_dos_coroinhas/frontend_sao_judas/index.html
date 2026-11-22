@@ -15290,10 +15290,9 @@ MARIA FERNANDA 30/10</textarea>
             });
         })();
 
-      
-// ============================================================================
+      // ============================================================================
         // REFATORAÇÃO UI/UX: ABA "RESUMO" (#admin-pane-overview)
-        // Dropdown limpo (apenas nomes), exclusão de coordenação pura, carga padronizada e mobile fluido
+        // Busca exata, carga completa (com zerados), trocas unificadas e cards compactos
         // ============================================================================
         (function () {
             const NOMES_COORD_E_CERIM = ["KAIKY DINIZ", "MARIA ALICE"];
@@ -15326,7 +15325,9 @@ MARIA FERNANDA 30/10</textarea>
                 status: "TODOS",
                 turno: "TODOS",
                 funcao: "TODOS",
-                busca: ""
+                busca: "",
+                membroSelecionadoChave: "",
+                membroSelecionadoId: null
             };
 
             let indiceSugestaoAtiva = -1;
@@ -15388,10 +15389,7 @@ MARIA FERNANDA 30/10</textarea>
                 if (!papelNorm) return false;
 
                 const atuaNoAltar = papelNorm.includes("cerimoniario") || papelNorm.includes("coroinha");
-                if (!atuaNoAltar && papelNorm.includes("coordenacao")) {
-                    return true;
-                }
-                return false;
+                return !atuaNoAltar && papelNorm.includes("coordenacao");
             }
 
             function pesoPapel(papel) {
@@ -15401,7 +15399,7 @@ MARIA FERNANDA 30/10</textarea>
             }
 
             // ------------------------------------------------------------------------
-            // 1. VALIDAÇÃO ESTRITA DE TROCAS APROVADAS / EFETIVADAS
+            // 1. FONTE ÚNICA DE VERDADE PARA TROCAS APROVADAS / EFETIVADAS
             // ------------------------------------------------------------------------
             function obterStatusTrocaNormalizado(t) {
                 if (!t) return "";
@@ -15438,12 +15436,105 @@ MARIA FERNANDA 30/10</textarea>
                 return true;
             }
 
-            function obterStatusEfetivoEscala(escala) {
+            function obterTrocasAprovadasConsolidadas(pessoasAltar) {
+                const mapa = new Map();
+
+                (historicoTrocasDB || []).forEach(t => {
+                    if (!trocaEstaAprovada(t)) return;
+
+                    const solNome = t.solicitanteNome || t.solicitante || "";
+                    const solId = t.solicitanteId || t.solicitante_id || null;
+                    const pessoaSol = pessoasAltar.find(p => pessoaCorresponde(p, solId, solNome));
+                    if (!pessoaSol) return;
+
+                    const idOrig = t.escalaOrigemId || t.escala_origem_id || null;
+                    const d1 = t.data1 || t.data_1 || "";
+                    const turno1 = t.turno1 || t.turno_1 || "";
+
+                    let escVinculada = null;
+                    if (idOrig) {
+                        escVinculada = (escalasDB || []).find(e => Number(e.id) === Number(idOrig));
+                    }
+                    if (!escVinculada && d1 && turno1) {
+                        escVinculada = (escalasDB || []).find(e =>
+                            e.data === d1 &&
+                            e.turno === turno1 &&
+                            pessoaCorresponde(pessoaSol, e.coroinhaId, e.coroinhaNome)
+                        );
+                    }
+                    if (!escVinculada && d1 && turno1 && (t.substitutoNome || t.substituto)) {
+                        const subAlvo = normalizarTexto(t.substitutoNome || t.substituto);
+                        escVinculada = (escalasDB || []).find(e =>
+                            e.data === d1 &&
+                            e.turno === turno1 &&
+                            (normalizarTexto(e.substitutoNome) === subAlvo || normalizarTexto(e.coroinhaNome) === subAlvo)
+                        );
+                    }
+
+                    const escalaIdFinal = escVinculada ? Number(escVinculada.id) : (idOrig ? Number(idOrig) : null);
+                    const dataFinal = escVinculada?.data || d1;
+                    const turnoFinal = escVinculada?.turno || turno1 || "";
+                    const funcaoFinal = String(escVinculada?.funcao || "").trim().toUpperCase();
+                    const subNome = t.substitutoNome || t.substituto || escVinculada?.substitutoNome || "-";
+                    const tipo = t.tipo || "Substituição";
+
+                    const chaveUnica = escalaIdFinal
+                        ? `ESC_${escalaIdFinal}`
+                        : `DATA_${dataFinal}_${turnoFinal}_${pessoaSol.chave}`;
+
+                    if (!mapa.has(chaveUnica)) {
+                        mapa.set(chaveUnica, {
+                            chaveUnica,
+                            escalaId: escalaIdFinal,
+                            vinculadaEmEscalaDB: Boolean(escVinculada),
+                            data: dataFinal,
+                            turno: turnoFinal,
+                            funcao: funcaoFinal,
+                            solicitanteChave: pessoaSol.chave,
+                            solicitanteNome: pessoaSol.nome,
+                            solicitanteId: pessoaSol.idPrincipal,
+                            substitutoNome: subNome,
+                            tipo,
+                            resumo: `${tipo} aprovada em ${formatarDataBR(dataFinal)} (${subNome})`
+                        });
+                    }
+                });
+
+                (escalasDB || []).forEach(e => {
+                    if (!escalaEhTrocaEfetiva(e)) return;
+                    const pessoaSol = pessoasAltar.find(p => pessoaCorresponde(p, e.coroinhaId, e.coroinhaNome));
+                    if (!pessoaSol) return;
+
+                    const chaveEsc = e.id ? `ESC_${Number(e.id)}` : `DATA_${e.data}_${e.turno}_${pessoaSol.chave}`;
+                    const chaveData = `DATA_${e.data}_${e.turno}_${pessoaSol.chave}`;
+
+                    if (!mapa.has(chaveEsc) && !mapa.has(chaveData)) {
+                        mapa.set(chaveEsc, {
+                            chaveUnica: chaveEsc,
+                            escalaId: e.id ? Number(e.id) : null,
+                            vinculadaEmEscalaDB: true,
+                            data: e.data || "",
+                            turno: e.turno || "",
+                            funcao: String(e.funcao || "").trim().toUpperCase(),
+                            solicitanteChave: pessoaSol.chave,
+                            solicitanteNome: pessoaSol.nome,
+                            solicitanteId: pessoaSol.idPrincipal,
+                            substitutoNome: e.substitutoNome || "-",
+                            tipo: "Substituição",
+                            resumo: `Substituição efetivada em ${formatarDataBR(e.data)} (${e.substitutoNome})`
+                        });
+                    }
+                });
+
+                return Array.from(mapa.values());
+            }
+
+            function obterStatusAnaliticoEscala(escala, idsEscalasComTrocaAprovada) {
                 if (!escala) return "CONFIRMADO";
-                if (escala.status === "TROCA") {
-                    return escalaEhTrocaEfetiva(escala) ? "TROCA" : "CONFIRMADO";
-                }
-                return escala.status || "CONFIRMADO";
+                if (escala.status === "PENDENTE") return "PENDENTE";
+                if (escala.id && idsEscalasComTrocaAprovada?.has(Number(escala.id))) return "TROCA";
+                if (escalaEhTrocaEfetiva(escala)) return "TROCA";
+                return "CONFIRMADO";
             }
 
             function obterMesesDisponiveis() {
@@ -15471,7 +15562,6 @@ MARIA FERNANDA 30/10</textarea>
                 const mapaPorChave = new Map();
                 const chavesExcluidas = new Set();
 
-                // Mapeia primeiro quem é exclusivamente Coordenação para excluir em todas as fontes
                 (coroinhasDB || []).forEach(m => {
                     if (ehPerfilSomenteCoordenacao(m.nome, m.papel)) {
                         chavesExcluidas.add(normalizarTexto(m.nome));
@@ -15549,7 +15639,7 @@ MARIA FERNANDA 30/10</textarea>
             }
 
             // ------------------------------------------------------------------------
-            // 3. TOOLTIP FLUTUANTE RESPONSIVO (MOUSE + TOQUE NO MOBILE)
+            // 3. TOOLTIP FLUTUANTE RESPONSIVO
             // ------------------------------------------------------------------------
             function garantirTooltipFlutuante() {
                 let el = document.getElementById("bi-floating-tooltip");
@@ -15587,19 +15677,19 @@ MARIA FERNANDA 30/10</textarea>
                     clientY = rect.top;
                 }
 
-                const tipW = tip.offsetWidth || 220;
-                const tipH = tip.offsetHeight || 96;
-                const margem = 12;
+                const tipW = tip.offsetWidth || 210;
+                const tipH = tip.offsetHeight || 92;
+                const margem = 10;
 
-                let posX = clientX + 14;
+                let posX = clientX + 12;
                 if (posX + tipW + margem > window.innerWidth) {
-                    posX = Math.max(margem, clientX - tipW - 14);
+                    posX = Math.max(margem, clientX - tipW - 12);
                 }
                 if (posX < margem) posX = margem;
 
-                let posY = clientY - tipH - 14;
+                let posY = clientY - tipH - 12;
                 if (posY < margem) {
-                    posY = Math.min(window.innerHeight - tipH - margem, clientY + 18);
+                    posY = Math.min(window.innerHeight - tipH - margem, clientY + 16);
                 }
 
                 tip.style.left = `${Math.round(posX)}px`;
@@ -15621,7 +15711,7 @@ MARIA FERNANDA 30/10</textarea>
             });
 
             // ------------------------------------------------------------------------
-            // 4. LISTA SUSPENSA PADRÃO NA BARRA DE PESQUISA (APENAS NOMES)
+            // 4. LISTA SUSPENSA PADRÃO NA BUSCA (APENAS NOMES + SELEÇÃO EXATA)
             // ------------------------------------------------------------------------
             function fecharDropdownAutocompleteBI() {
                 const dd = document.getElementById("bi-autocomplete-dropdown");
@@ -15650,7 +15740,10 @@ MARIA FERNANDA 30/10</textarea>
                 const filtroPapel = estadoResumoBI.papel;
                 const candidatas = (pessoasAltarCache || []).filter(p => {
                     if (filtroPapel !== "TODOS" && !p.papel.includes(filtroPapel)) return false;
-                    if (!termoNorm) return true;
+                    // Se o campo já tem um membro exatamente selecionado, ao abrir a lista mostra todos para permitir troca rápida
+                    if (!termoNorm || (estadoResumoBI.membroSelecionadoChave && termoNorm === estadoResumoBI.membroSelecionadoChave)) {
+                        return true;
+                    }
                     return p.chave.includes(termoNorm);
                 });
 
@@ -15666,13 +15759,15 @@ MARIA FERNANDA 30/10</textarea>
                     return;
                 }
 
-                const nomeSelecionadoAtual = normalizarTexto(estadoResumoBI.busca);
-
                 dd.innerHTML = sugestoesAtuaisCache.map((p, idx) => {
-                    const estaSelecionado = nomeSelecionadoAtual && p.chave === nomeSelecionadoAtual;
+                    const estaSelecionado = Boolean(
+                        estadoResumoBI.membroSelecionadoChave && p.chave === estadoResumoBI.membroSelecionadoChave
+                    );
                     return `
                         <div class="bi-ac-option ${estaSelecionado ? 'is-selected' : ''}"
                              data-index="${idx}"
+                             data-id="${p.idPrincipal || ''}"
+                             data-chave="${escaparHTML(p.chave)}"
                              data-nome="${escaparHTML(p.nome)}"
                              role="option"
                              aria-selected="${estaSelecionado ? 'true' : 'false'}">
@@ -15684,7 +15779,10 @@ MARIA FERNANDA 30/10</textarea>
                 dd.querySelectorAll(".bi-ac-option").forEach(itemEl => {
                     itemEl.addEventListener("pointerdown", (ev) => {
                         ev.preventDefault();
-                        selecionarOpcaoBuscaBI(itemEl.dataset.nome || "");
+                        const nomeSel = itemEl.dataset.nome || "";
+                        const chaveSel = itemEl.dataset.chave || normalizarTexto(nomeSel);
+                        const idSel = itemEl.dataset.id ? Number(itemEl.dataset.id) : null;
+                        selecionarOpcaoExataBuscaBI(nomeSel, chaveSel, idSel);
                     });
                 });
 
@@ -15704,10 +15802,13 @@ MARIA FERNANDA 30/10</textarea>
                 }
             };
 
-            function selecionarOpcaoBuscaBI(nome) {
+            function selecionarOpcaoExataBuscaBI(nome, chave, idPrincipal) {
                 const input = document.getElementById("bi-filtro-busca");
                 if (input) input.value = nome;
                 estadoResumoBI.busca = nome;
+                estadoResumoBI.membroSelecionadoChave = chave || normalizarTexto(nome);
+                estadoResumoBI.membroSelecionadoId = idPrincipal || null;
+
                 document.getElementById("bi-btn-clear-busca")?.classList.toggle("d-none", !nome);
                 document.getElementById("bi-btn-chevron-busca")?.classList.toggle("d-none", Boolean(nome));
                 fecharDropdownAutocompleteBI();
@@ -15736,7 +15837,9 @@ MARIA FERNANDA 30/10</textarea>
                 } else if (ev.key === "Enter" && indiceSugestaoAtiva >= 0) {
                     ev.preventDefault();
                     const escolhido = sugestoesAtuaisCache[indiceSugestaoAtiva];
-                    if (escolhido) selecionarOpcaoBuscaBI(escolhido.nome);
+                    if (escolhido) {
+                        selecionarOpcaoExataBuscaBI(escolhido.nome, escolhido.chave, escolhido.idPrincipal);
+                    }
                     return;
                 } else if (ev.key === "Escape") {
                     fecharDropdownAutocompleteBI();
@@ -15758,6 +15861,9 @@ MARIA FERNANDA 30/10</textarea>
                     input.focus();
                 }
                 estadoResumoBI.busca = "";
+                estadoResumoBI.membroSelecionadoChave = "";
+                estadoResumoBI.membroSelecionadoId = null;
+
                 document.getElementById("bi-btn-clear-busca")?.classList.add("d-none");
                 document.getElementById("bi-btn-chevron-busca")?.classList.remove("d-none");
                 window.renderizarRelatorioOverview();
@@ -15765,7 +15871,7 @@ MARIA FERNANDA 30/10</textarea>
             };
 
             // ------------------------------------------------------------------------
-            // 5. ESTILOS (DESKTOP PRESERVADO + CARGA PADRONIZADA + MOBILE FLUIDO)
+            // 5. ESTILOS COMPACTOS (DESKTOP E MOBILE) + SUB-ABAS REDUZIDAS
             // ------------------------------------------------------------------------
             function injetarEstilosResumoBI() {
                 document.getElementById("estilos-resumo-bi")?.remove();
@@ -15776,33 +15882,34 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-shell {
                         background: var(--surface-white);
                         border: 1px solid var(--border-warm);
-                        border-top: 4px solid var(--liturgical-wine);
-                        border-radius: var(--radius-card);
+                        border-top: 3px solid var(--liturgical-wine);
+                        border-radius: 14px;
                         box-shadow: var(--shadow-soft);
                         overflow: visible;
                     }
 
+                    /* Cabeçalho enxuto */
                     #admin-pane-overview .bi-topbar {
-                        padding: 0.9rem 1.1rem;
+                        padding: 0.6rem 0.9rem;
                         background: var(--surface-white);
                         border-bottom: 1px solid var(--border-warm);
-                        border-radius: calc(var(--radius-card) - 2px) calc(var(--radius-card) - 2px) 0 0;
+                        border-radius: 12px 12px 0 0;
                         display: flex;
                         flex-wrap: wrap;
                         align-items: center;
                         justify-content: space-between;
-                        gap: 0.75rem;
+                        gap: 0.5rem;
                     }
 
                     #admin-pane-overview .bi-topbar-title {
                         display: flex;
                         align-items: center;
                         flex-wrap: wrap;
-                        gap: 0.55rem;
+                        gap: 0.45rem;
                     }
 
                     #admin-pane-overview .bi-topbar-title h5 {
-                        font-size: 0.98rem;
+                        font-size: 0.9rem;
                         font-weight: 700;
                         color: var(--liturgical-wine);
                         margin: 0;
@@ -15811,95 +15918,93 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-topbar-actions {
                         display: flex;
                         align-items: center;
-                        gap: 0.45rem;
+                        gap: 0.4rem;
                         flex-wrap: nowrap;
                     }
 
                     #admin-pane-overview .bi-topbar-actions .btn {
                         white-space: nowrap;
-                        font-size: 0.77rem;
-                        padding: 0.4rem 0.8rem;
-                        border-radius: 8px;
+                        font-size: 0.74rem;
+                        padding: 0.3rem 0.68rem;
+                        border-radius: 7px;
                     }
 
-                    /* Barra de Slicers (Desktop preservado) */
+                    /* Barra de Slicers compacta */
                     #admin-pane-overview .bi-slicer-bar {
                         background: var(--bg-cream);
                         border-bottom: 1px solid var(--border-warm);
-                        padding: 0.8rem 1.1rem;
+                        padding: 0.55rem 0.9rem;
                         display: grid;
-                        grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(210px, 1.45fr) auto;
-                        gap: 0.65rem;
+                        grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(200px, 1.45fr) auto;
+                        gap: 0.5rem;
                         align-items: end;
                     }
 
                     #admin-pane-overview .bi-slicer-group label {
                         display: block;
-                        font-size: 0.68rem;
+                        font-size: 0.65rem;
                         font-weight: 700;
                         text-transform: uppercase;
                         letter-spacing: 0.04em;
                         color: var(--text-muted);
-                        margin-bottom: 0.25rem;
+                        margin-bottom: 0.18rem;
                     }
 
                     #admin-pane-overview .bi-slicer-bar .form-select,
                     #admin-pane-overview .bi-slicer-bar .form-control {
-                        height: 36px !important;
-                        min-height: 36px !important;
-                        font-size: 0.82rem !important;
-                        padding: 0.25rem 0.65rem !important;
+                        height: 32px !important;
+                        min-height: 32px !important;
+                        font-size: 0.79rem !important;
+                        padding: 0.18rem 0.55rem !important;
                         border-color: var(--border-warm) !important;
-                        border-radius: 8px !important;
+                        border-radius: 7px !important;
                         background-color: var(--surface-white) !important;
                     }
 
                     #admin-pane-overview .bi-btn-reset {
-                        height: 36px;
-                        padding: 0 0.85rem;
-                        font-size: 0.78rem;
+                        height: 32px;
+                        padding: 0 0.7rem;
+                        font-size: 0.74rem;
                         font-weight: 600;
-                        border-radius: 8px;
+                        border-radius: 7px;
                         white-space: nowrap;
                     }
 
                     /* Lista Suspensa Padrão na Busca (Apenas Nomes) */
-                    #bi-autocomplete-wrap {
-                        position: relative;
-                    }
+                    #bi-autocomplete-wrap { position: relative; }
 
                     #bi-autocomplete-wrap .bi-search-icon {
                         position: absolute;
-                        left: 0.7rem;
+                        left: 0.6rem;
                         top: 50%;
                         transform: translateY(-50%);
-                        font-size: 0.76rem;
+                        font-size: 0.72rem;
                         color: var(--text-muted);
                         pointer-events: none;
                     }
 
                     #bi-autocomplete-wrap #bi-filtro-busca {
-                        padding-left: 2rem !important;
-                        padding-right: 2.1rem !important;
+                        padding-left: 1.85rem !important;
+                        padding-right: 1.95rem !important;
                     }
 
                     #bi-autocomplete-wrap .bi-clear-busca-btn,
                     #bi-autocomplete-wrap .bi-chevron-busca-btn {
                         position: absolute;
-                        right: 0.35rem;
+                        right: 0.25rem;
                         top: 50%;
                         transform: translateY(-50%);
-                        width: 26px;
-                        height: 26px;
+                        width: 24px;
+                        height: 24px;
                         border: none;
                         background: transparent;
                         color: var(--text-muted);
-                        border-radius: 6px;
+                        border-radius: 5px;
                         display: inline-flex;
                         align-items: center;
                         justify-content: center;
                         cursor: pointer;
-                        transition: transform 0.16s ease, color 0.16s ease;
+                        transition: transform 0.15s ease, color 0.15s ease;
                     }
 
                     #bi-autocomplete-wrap .bi-chevron-busca-btn.is-open i {
@@ -15922,17 +16027,17 @@ MARIA FERNANDA 30/10</textarea>
                         border: 1px solid var(--border-warm);
                         border-radius: 8px;
                         box-shadow: 0 10px 24px rgba(43, 33, 34, 0.15);
-                        max-height: 230px;
+                        max-height: 220px;
                         overflow-y: auto;
-                        padding: 0.25rem;
+                        padding: 0.22rem;
                         scrollbar-width: thin;
                         -webkit-overflow-scrolling: touch;
                     }
 
                     .bi-ac-option {
-                        padding: 0.45rem 0.65rem;
+                        padding: 0.4rem 0.6rem;
                         border-radius: 6px;
-                        font-size: 0.82rem;
+                        font-size: 0.8rem;
                         font-weight: 500;
                         color: var(--text-dark);
                         cursor: pointer;
@@ -15955,34 +16060,34 @@ MARIA FERNANDA 30/10</textarea>
                     }
 
                     .bi-ac-empty {
-                        padding: 0.65rem;
+                        padding: 0.6rem;
                         text-align: center;
-                        font-size: 0.78rem;
+                        font-size: 0.76rem;
                         color: var(--text-muted);
                     }
 
-                    /* Chips de filtros ativos */
+                    /* Faixa de filtros ativos */
                     #admin-pane-overview .bi-active-filters {
                         display: flex;
                         flex-wrap: wrap;
                         align-items: center;
-                        gap: 0.45rem;
-                        padding: 0.55rem 1.1rem;
+                        gap: 0.4rem;
+                        padding: 0.42rem 0.9rem;
                         background: var(--liturgical-gold-soft);
                         border-bottom: 1px solid var(--border-warm);
-                        font-size: 0.75rem;
+                        font-size: 0.72rem;
                     }
 
                     #admin-pane-overview .bi-filter-chip {
                         display: inline-flex;
                         align-items: center;
-                        gap: 0.35rem;
-                        padding: 0.22rem 0.65rem;
+                        gap: 0.3rem;
+                        padding: 0.16rem 0.55rem;
                         border-radius: 50rem;
                         background: var(--liturgical-wine);
                         color: var(--surface-white);
                         font-weight: 600;
-                        font-size: 0.73rem;
+                        font-size: 0.7rem;
                         border: none;
                         cursor: pointer;
                     }
@@ -15991,13 +16096,13 @@ MARIA FERNANDA 30/10</textarea>
                         background: var(--liturgical-wine-dark);
                     }
 
-                    /* Sub-abas internas */
+                    /* Sub-abas compactas e discretas (Desktop e Mobile) */
                     #admin-pane-overview .bi-subtabs {
                         display: flex;
                         flex-wrap: nowrap;
                         overflow-x: auto;
-                        gap: 0.45rem;
-                        padding: 0.65rem 1.1rem;
+                        gap: 0.35rem;
+                        padding: 0.42rem 0.9rem;
                         background: #FDFBF8;
                         border-bottom: 1px solid var(--border-warm);
                         scrollbar-width: thin;
@@ -16008,16 +16113,17 @@ MARIA FERNANDA 30/10</textarea>
                         border: 1px solid var(--border-warm);
                         background: var(--surface-white);
                         color: var(--text-muted);
-                        font-size: 0.8rem;
+                        font-size: 0.74rem;
                         font-weight: 600;
-                        padding: 0.46rem 0.95rem;
-                        border-radius: 9px;
+                        padding: 0.26rem 0.68rem;
+                        min-height: 28px;
+                        border-radius: 7px;
                         white-space: nowrap;
                         flex: 0 0 auto;
                         display: inline-flex;
                         align-items: center;
-                        gap: 0.45rem;
-                        transition: all 0.16s ease;
+                        gap: 0.35rem;
+                        transition: all 0.15s ease;
                     }
 
                     #admin-pane-overview .bi-subtab-btn:hover {
@@ -16032,12 +16138,13 @@ MARIA FERNANDA 30/10</textarea>
                     }
 
                     #admin-pane-overview .bi-subtab-count {
-                        font-size: 0.69rem;
+                        font-size: 0.64rem;
                         font-weight: 700;
-                        padding: 0.12rem 0.45rem;
+                        padding: 0.06rem 0.36rem;
                         border-radius: 50rem;
                         background: var(--bg-cream);
                         color: var(--text-dark);
+                        line-height: 1.2;
                     }
 
                     #admin-pane-overview .bi-subtab-btn.active .bi-subtab-count {
@@ -16046,30 +16153,30 @@ MARIA FERNANDA 30/10</textarea>
                     }
 
                     #admin-pane-overview .bi-body {
-                        padding: 1.1rem;
+                        padding: 0.8rem 0.9rem;
                         background: #FCFBF9;
-                        border-radius: 0 0 calc(var(--radius-card) - 2px) calc(var(--radius-card) - 2px);
+                        border-radius: 0 0 12px 12px;
                     }
 
-                    /* Grade de KPIs */
+                    /* Grade de KPIs compacta */
                     #admin-pane-overview .bi-kpi-grid {
                         display: grid;
                         grid-template-columns: repeat(4, minmax(0, 1fr));
-                        gap: 0.8rem;
-                        margin-bottom: 1.05rem;
+                        gap: 0.55rem;
+                        margin-bottom: 0.75rem;
                     }
 
                     #admin-pane-overview .bi-kpi-tile {
                         background: var(--surface-white);
                         border: 1px solid var(--border-warm);
-                        border-left: 4px solid var(--liturgical-wine);
-                        border-radius: 12px;
-                        padding: 0.85rem 1rem;
+                        border-left: 3.5px solid var(--liturgical-wine);
+                        border-radius: 10px;
+                        padding: 0.55rem 0.75rem;
                         display: flex;
                         flex-direction: column;
                         justify-content: space-between;
-                        gap: 0.25rem;
-                        box-shadow: 0 2px 8px rgba(90, 18, 25, 0.03);
+                        gap: 0.14rem;
+                        box-shadow: 0 1px 5px rgba(90, 18, 25, 0.03);
                     }
 
                     #admin-pane-overview .bi-kpi-tile.kpi-success { border-left-color: var(--status-confirmed-text); }
@@ -16077,35 +16184,35 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-kpi-tile.kpi-gold    { border-left-color: var(--liturgical-gold); }
 
                     #admin-pane-overview .bi-kpi-label {
-                        font-size: 0.69rem;
+                        font-size: 0.65rem;
                         font-weight: 700;
                         text-transform: uppercase;
-                        letter-spacing: 0.04em;
+                        letter-spacing: 0.03em;
                         color: var(--text-muted);
                     }
 
                     #admin-pane-overview .bi-kpi-value {
-                        font-size: 1.6rem;
+                        font-size: 1.32rem;
                         font-weight: 800;
                         line-height: 1.1;
                         color: var(--text-dark);
                     }
 
                     #admin-pane-overview .bi-kpi-meta {
-                        font-size: 0.74rem;
+                        font-size: 0.7rem;
                         color: var(--text-muted);
                     }
 
-                    /* Painéis Visuais */
+                    /* Painéis compactos */
                     #admin-pane-overview .bi-panel {
                         background: var(--surface-white);
                         border: 1px solid var(--border-warm);
-                        border-radius: 12px;
-                        padding: 1rem 1.05rem;
+                        border-radius: 10px;
+                        padding: 0.72rem 0.85rem;
                         height: 100%;
                         display: flex;
                         flex-direction: column;
-                        box-shadow: 0 2px 10px rgba(90, 18, 25, 0.03);
+                        box-shadow: 0 1px 6px rgba(90, 18, 25, 0.03);
                         transition: border-color 0.2s ease;
                     }
 
@@ -16117,25 +16224,25 @@ MARIA FERNANDA 30/10</textarea>
                         display: flex;
                         align-items: center;
                         justify-content: space-between;
-                        gap: 0.5rem;
-                        margin-bottom: 0.85rem;
-                        padding-bottom: 0.5rem;
+                        gap: 0.45rem;
+                        margin-bottom: 0.58rem;
+                        padding-bottom: 0.36rem;
                         border-bottom: 1px solid #F0E8DE;
                     }
 
                     #admin-pane-overview .bi-panel-title {
-                        font-size: 0.76rem;
+                        font-size: 0.72rem;
                         font-weight: 800;
                         text-transform: uppercase;
-                        letter-spacing: 0.04em;
+                        letter-spacing: 0.03em;
                         color: var(--liturgical-wine);
                         margin: 0;
                     }
 
                     #admin-pane-overview .bi-panel-badge {
-                        font-size: 0.7rem;
+                        font-size: 0.67rem;
                         font-weight: 700;
-                        padding: 0.18rem 0.55rem;
+                        padding: 0.12rem 0.48rem;
                         border-radius: 50rem;
                         background: var(--bg-cream);
                         color: var(--text-dark);
@@ -16143,19 +16250,19 @@ MARIA FERNANDA 30/10</textarea>
                         white-space: nowrap;
                     }
 
-                    /* 1. Gráfico de Rosca Dinâmico */
+                    /* 1. Gráfico de Rosca Dinâmico Compacto */
                     #admin-pane-overview .bi-donut-wrap {
                         display: flex;
                         align-items: center;
-                        gap: 1.1rem;
+                        gap: 0.85rem;
                         flex-wrap: wrap;
                         margin: auto 0;
                     }
 
                     #admin-pane-overview .bi-donut-svg-box {
                         position: relative;
-                        width: 128px;
-                        height: 128px;
+                        width: 104px;
+                        height: 104px;
                         flex-shrink: 0;
                     }
 
@@ -16170,7 +16277,7 @@ MARIA FERNANDA 30/10</textarea>
                         fill: none;
                         stroke-width: 15;
                         cursor: pointer;
-                        transition: stroke-width 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+                        transition: stroke-width 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
                         outline: none;
                     }
 
@@ -16178,14 +16285,14 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-donut-slice:focus-visible,
                     #admin-pane-overview .bi-donut-slice.is-selected {
                         stroke-width: 19;
-                        filter: drop-shadow(0 3px 6px rgba(43, 33, 34, 0.22));
+                        filter: drop-shadow(0 2px 5px rgba(43, 33, 34, 0.22));
                     }
 
                     #admin-pane-overview .bi-donut-slice.is-dimmed { opacity: 0.35; }
 
                     #admin-pane-overview .bi-donut-center {
                         position: absolute;
-                        inset: 19px;
+                        inset: 16px;
                         border-radius: 50%;
                         display: flex;
                         flex-direction: column;
@@ -16197,13 +16304,13 @@ MARIA FERNANDA 30/10</textarea>
                     }
 
                     #admin-pane-overview .bi-donut-center strong {
-                        font-size: 1.15rem;
+                        font-size: 1rem;
                         font-weight: 800;
                         line-height: 1.05;
                     }
 
                     #admin-pane-overview .bi-donut-center span {
-                        font-size: 0.62rem;
+                        font-size: 0.56rem;
                         font-weight: 700;
                         text-transform: uppercase;
                         letter-spacing: 0.03em;
@@ -16211,25 +16318,25 @@ MARIA FERNANDA 30/10</textarea>
                     }
 
                     #admin-pane-overview .bi-legend {
-                        flex: 1 1 140px;
+                        flex: 1 1 130px;
                         display: flex;
                         flex-direction: column;
-                        gap: 0.35rem;
+                        gap: 0.28rem;
                     }
 
                     #admin-pane-overview .bi-legend-btn {
                         width: 100%;
                         border: 1px solid #F0E8DE;
                         background: #FCFBF9;
-                        border-radius: 9px;
-                        padding: 0.38rem 0.6rem;
+                        border-radius: 7px;
+                        padding: 0.28rem 0.5rem;
                         display: flex;
                         align-items: center;
                         justify-content: space-between;
-                        font-size: 0.78rem;
-                        gap: 0.5rem;
+                        font-size: 0.74rem;
+                        gap: 0.45rem;
                         cursor: pointer;
-                        transition: all 0.16s ease;
+                        transition: all 0.15s ease;
                     }
 
                     #admin-pane-overview .bi-legend-btn:hover {
@@ -16247,24 +16354,24 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-legend-left {
                         display: inline-flex;
                         align-items: center;
-                        gap: 0.45rem;
+                        gap: 0.4rem;
                         color: var(--text-dark);
                         font-weight: 600;
                     }
 
                     #admin-pane-overview .bi-dot {
-                        width: 10px;
-                        height: 10px;
+                        width: 9px;
+                        height: 9px;
                         border-radius: 3px;
                         flex-shrink: 0;
                     }
 
-                    /* 2. Turnos */
+                    /* 2. Turnos compacto */
                     #admin-pane-overview .bi-mini-legend-row {
                         display: flex;
                         flex-wrap: wrap;
-                        gap: 0.35rem;
-                        margin-bottom: 0.65rem;
+                        gap: 0.3rem;
+                        margin-bottom: 0.45rem;
                     }
 
                     #admin-pane-overview .bi-mini-pill-filter {
@@ -16272,9 +16379,9 @@ MARIA FERNANDA 30/10</textarea>
                         background: var(--bg-cream);
                         color: var(--text-dark);
                         border-radius: 50rem;
-                        font-size: 0.7rem;
+                        font-size: 0.67rem;
                         font-weight: 700;
-                        padding: 0.22rem 0.65rem;
+                        padding: 0.14rem 0.52rem;
                         cursor: pointer;
                         transition: all 0.15s ease;
                     }
@@ -16293,7 +16400,7 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-modern-bar-stack {
                         display: flex;
                         flex-direction: column;
-                        gap: 0.55rem;
+                        gap: 0.38rem;
                     }
 
                     #admin-pane-overview .bi-turno-card-btn {
@@ -16301,16 +16408,15 @@ MARIA FERNANDA 30/10</textarea>
                         text-align: left;
                         border: 1px solid #EFE7DC;
                         background: linear-gradient(180deg, #FFFFFF 0%, #FAF7F2 100%);
-                        border-radius: 10px;
-                        padding: 0.6rem 0.75rem;
+                        border-radius: 8px;
+                        padding: 0.42rem 0.6rem;
                         cursor: pointer;
-                        transition: all 0.16s ease;
+                        transition: all 0.15s ease;
                     }
 
                     #admin-pane-overview .bi-turno-card-btn:hover {
                         border-color: var(--liturgical-gold);
                         transform: translateY(-1px);
-                        box-shadow: 0 4px 10px rgba(90, 18, 25, 0.06);
                     }
 
                     #admin-pane-overview .bi-turno-card-btn.is-selected {
@@ -16321,35 +16427,35 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-turno-card-btn.is-dimmed { opacity: 0.45; }
 
                     #admin-pane-overview .bi-bar-track-modern {
-                        height: 11px;
+                        height: 9px;
                         background: #EDE6DC;
                         border-radius: 999px;
                         overflow: hidden;
                         display: flex;
                         gap: 2px;
-                        padding: 1.5px;
+                        padding: 1px;
                     }
 
                     #admin-pane-overview .bi-bar-seg {
                         height: 100%;
                         border-radius: 999px;
-                        transition: width 0.3s ease;
+                        transition: width 0.25s ease;
                     }
 
                     #admin-pane-overview .bi-seg-conf  { background: linear-gradient(90deg, #1B5E20, #388E3C); }
                     #admin-pane-overview .bi-seg-troca { background: linear-gradient(90deg, #C29B28, #E2BE46); }
                     #admin-pane-overview .bi-seg-falta { background: linear-gradient(90deg, #8E1B24, #D32F2F); }
 
-                    /* 3. Funções no Altar */
+                    /* 3. Funções no Altar compacto */
                     #admin-pane-overview .bi-fn-bar-btn {
                         width: 100%;
                         border: 1px solid transparent;
                         background: #FCFBF9;
-                        border-radius: 10px;
-                        padding: 0.45rem 0.6rem;
+                        border-radius: 8px;
+                        padding: 0.3rem 0.5rem;
                         text-align: left;
                         cursor: pointer;
-                        transition: all 0.16s ease;
+                        transition: all 0.15s ease;
                     }
 
                     #admin-pane-overview .bi-fn-bar-btn:hover {
@@ -16366,30 +16472,30 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-fn-bar-btn.is-dimmed { opacity: 0.42; }
 
                     #admin-pane-overview .bi-fn-track {
-                        height: 9px;
+                        height: 7px;
                         background: #EDE6DC;
                         border-radius: 999px;
                         overflow: hidden;
-                        margin-top: 0.28rem;
+                        margin-top: 0.2rem;
                     }
 
                     #admin-pane-overview .bi-fn-fill {
                         height: 100%;
                         border-radius: 999px;
                         background: linear-gradient(90deg, var(--liturgical-wine-dark) 0%, var(--liturgical-wine-light) 100%);
-                        transition: width 0.3s ease;
+                        transition: width 0.25s ease;
                     }
 
                     #admin-pane-overview .bi-fn-bar-btn.is-selected .bi-fn-fill {
                         background: linear-gradient(90deg, var(--liturgical-gold-hover) 0%, var(--liturgical-gold) 100%);
                     }
 
-                    /* 4. Padronização Visual Simétrica: "Maior Carga no Período" e "Pontos de Atenção" */
+                    /* 4. Maior Carga (Lista Completa) e Pontos de Atenção — Compactos e Simétricos */
                     #admin-pane-overview .bi-rank-list {
                         display: flex;
                         flex-direction: column;
-                        gap: 0.45rem;
-                        max-height: 248px;
+                        gap: 0.32rem;
+                        max-height: 220px;
                         overflow-y: auto;
                         padding-right: 4px;
                         scrollbar-width: thin;
@@ -16400,19 +16506,23 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-rank-row {
                         border: 1px solid #EFE7DC;
                         background: #FCFBF9;
-                        border-radius: 10px;
-                        padding: 0.5rem 0.7rem;
-                        font-size: 0.81rem;
-                        line-height: 1.25;
+                        border-radius: 8px;
+                        padding: 0.38rem 0.6rem;
+                        font-size: 0.78rem;
+                        line-height: 1.2;
                         cursor: pointer;
-                        transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+                        transition: border-color 0.15s ease, background-color 0.15s ease;
                     }
 
                     #admin-pane-overview .bi-carga-row:hover,
                     #admin-pane-overview .bi-rank-row:hover {
                         border-color: var(--liturgical-wine);
                         background: var(--surface-white);
-                        box-shadow: 0 2px 8px rgba(90, 18, 25, 0.06);
+                    }
+
+                    #admin-pane-overview .bi-carga-row.is-zero {
+                        background: #FAF8F5;
+                        opacity: 0.86;
                     }
 
                     #admin-pane-overview .bi-carga-top,
@@ -16420,22 +16530,20 @@ MARIA FERNANDA 30/10</textarea>
                         display: flex;
                         align-items: center;
                         justify-content: space-between;
-                        gap: 0.55rem;
+                        gap: 0.5rem;
                     }
 
-                    #admin-pane-overview .bi-carga-top {
-                        margin-bottom: 0.32rem;
-                    }
+                    #admin-pane-overview .bi-carga-top { margin-bottom: 0.24rem; }
 
                     #admin-pane-overview .bi-carga-name-wrap {
                         display: flex;
                         align-items: baseline;
-                        gap: 0.4rem;
+                        gap: 0.38rem;
                         min-width: 0;
                     }
 
                     #admin-pane-overview .bi-carga-name {
-                        font-size: 0.81rem;
+                        font-size: 0.78rem;
                         font-weight: 700;
                         color: var(--liturgical-wine);
                         white-space: nowrap;
@@ -16444,14 +16552,14 @@ MARIA FERNANDA 30/10</textarea>
                     }
 
                     #admin-pane-overview .bi-carga-role {
-                        font-size: 0.71rem;
+                        font-size: 0.68rem;
                         color: var(--text-muted);
                         white-space: nowrap;
                         flex-shrink: 0;
                     }
 
                     #admin-pane-overview .bi-carga-track {
-                        height: 5px;
+                        height: 4.5px;
                         background: #EDE6DC;
                         border-radius: 999px;
                         overflow: hidden;
@@ -16461,7 +16569,7 @@ MARIA FERNANDA 30/10</textarea>
                         height: 100%;
                         border-radius: 999px;
                         background: linear-gradient(90deg, var(--liturgical-wine) 0%, var(--liturgical-gold) 100%);
-                        transition: width 0.3s ease;
+                        transition: width 0.25s ease;
                     }
 
                     #admin-pane-overview .bi-carga-fill.is-max {
@@ -16476,40 +16584,37 @@ MARIA FERNANDA 30/10</textarea>
                         background: var(--text-dark);
                         color: var(--surface-white);
                         border: 1px solid var(--liturgical-gold);
-                        border-radius: 10px;
-                        padding: 0.6rem 0.8rem;
-                        min-width: 185px;
-                        max-width: 265px;
-                        box-shadow: 0 12px 28px rgba(43, 33, 34, 0.3);
+                        border-radius: 9px;
+                        padding: 0.5rem 0.7rem;
+                        min-width: 175px;
+                        max-width: 255px;
+                        box-shadow: 0 10px 24px rgba(43, 33, 34, 0.28);
                         opacity: 0;
                         transform: translateY(4px);
                         transition: opacity 0.14s ease, transform 0.14s ease;
                         font-family: 'Inter', sans-serif;
                     }
 
-                    .bi-floating-tooltip.visible {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
+                    .bi-floating-tooltip.visible { opacity: 1; transform: translateY(0); }
 
                     .bi-tip-title {
-                        font-size: 0.73rem;
+                        font-size: 0.71rem;
                         font-weight: 700;
                         color: var(--liturgical-gold);
                         text-transform: uppercase;
                         letter-spacing: 0.03em;
-                        margin-bottom: 0.3rem;
-                        padding-bottom: 0.22rem;
+                        margin-bottom: 0.25rem;
+                        padding-bottom: 0.18rem;
                         border-bottom: 1px solid rgba(255, 255, 255, 0.14);
                     }
 
-                    .bi-tip-body { font-size: 0.76rem; line-height: 1.45; }
-                    .bi-tip-row  { display: flex; justify-content: space-between; gap: 0.8rem; }
+                    .bi-tip-body { font-size: 0.74rem; line-height: 1.4; }
+                    .bi-tip-row  { display: flex; justify-content: space-between; gap: 0.75rem; }
                     .bi-tip-hint {
-                        margin-top: 0.35rem;
-                        padding-top: 0.25rem;
+                        margin-top: 0.3rem;
+                        padding-top: 0.2rem;
                         border-top: 1px solid rgba(255, 255, 255, 0.12);
-                        font-size: 0.67rem;
+                        font-size: 0.65rem;
                         color: rgba(255, 255, 255, 0.72);
                     }
 
@@ -16519,7 +16624,7 @@ MARIA FERNANDA 30/10</textarea>
                         width: 100%;
                         overflow-x: auto !important;
                         overflow-y: auto !important;
-                        max-height: 55vh;
+                        max-height: 54vh;
                         border: 1px solid var(--border-warm);
                         border-radius: 10px;
                         background: var(--surface-white);
@@ -16528,7 +16633,7 @@ MARIA FERNANDA 30/10</textarea>
                         scrollbar-color: rgba(124, 29, 38, 0.45) var(--bg-cream);
                     }
 
-                    #modalHistoricoUsuario .bi-modal-table-scroll { max-height: 42vh; }
+                    #modalHistoricoUsuario .bi-modal-table-scroll { max-height: 40vh; }
 
                     #admin-pane-overview .bi-table-scroll::-webkit-scrollbar,
                     #modalHistoricoUsuario .bi-modal-table-scroll::-webkit-scrollbar { height: 7px; width: 7px; }
@@ -16545,7 +16650,7 @@ MARIA FERNANDA 30/10</textarea>
                     #admin-pane-overview .bi-table,
                     #modalHistoricoUsuario .bi-table {
                         width: 100% !important;
-                        min-width: 700px !important;
+                        min-width: 640px !important;
                         border-collapse: separate !important;
                         border-spacing: 0 !important;
                         margin: 0 !important;
@@ -16561,11 +16666,11 @@ MARIA FERNANDA 30/10</textarea>
                         z-index: 3;
                         background: var(--bg-cream) !important;
                         color: var(--text-dark) !important;
-                        font-size: 0.69rem !important;
+                        font-size: 0.67rem !important;
                         font-weight: 700 !important;
                         text-transform: uppercase;
                         letter-spacing: 0.04em;
-                        padding: 0.65rem 0.75rem !important;
+                        padding: 0.5rem 0.65rem !important;
                         border-bottom: 1.5px solid var(--border-warm) !important;
                         white-space: nowrap;
                     }
@@ -16590,9 +16695,9 @@ MARIA FERNANDA 30/10</textarea>
                         display: table-cell !important;
                         width: auto !important;
                         vertical-align: middle !important;
-                        padding: 0.55rem 0.75rem !important;
+                        padding: 0.45rem 0.65rem !important;
                         border-bottom: 1px solid #F0E8DE !important;
-                        font-size: 0.81rem !important;
+                        font-size: 0.79rem !important;
                         background: var(--surface-white);
                     }
 
@@ -16609,23 +16714,22 @@ MARIA FERNANDA 30/10</textarea>
                         position: sticky;
                         left: 0;
                         z-index: 2;
-                        min-width: 165px;
+                        min-width: 155px;
                         box-shadow: 2px 0 6px rgba(43, 33, 34, 0.05);
                     }
 
                     #tabela-bi-frequencia thead th:first-child,
                     #tabela-bi-ocorrencias thead th:first-child { z-index: 4; }
 
-                    /* Nome clicável com feedback visual claro (substitui botão "Ver Histórico") */
                     .bi-member-btn {
                         border: none;
                         background: transparent;
-                        padding: 0.16rem 0.4rem;
-                        margin: -0.16rem -0.4rem;
+                        padding: 0.14rem 0.35rem;
+                        margin: -0.14rem -0.35rem;
                         border-radius: 6px;
                         color: var(--liturgical-wine);
                         font-weight: 700;
-                        font-size: 0.82rem;
+                        font-size: 0.8rem;
                         text-align: left;
                         cursor: pointer;
                         text-decoration: none;
@@ -16648,9 +16752,9 @@ MARIA FERNANDA 30/10</textarea>
                     .bi-pill {
                         display: inline-flex;
                         align-items: center;
-                        padding: 0.18rem 0.55rem;
+                        padding: 0.15rem 0.48rem;
                         border-radius: 6px;
-                        font-size: 0.71rem;
+                        font-size: 0.69rem;
                         font-weight: 700;
                         white-space: nowrap;
                     }
@@ -16658,53 +16762,53 @@ MARIA FERNANDA 30/10</textarea>
                     .bi-pill-falta   { background: var(--status-pending-bg);   color: var(--status-pending-text); }
                     .bi-pill-troca   { background: var(--status-swap-bg);      color: var(--status-swap-text); }
                     .bi-pill-neutral { background: var(--bg-cream); color: var(--text-dark); border: 1px solid var(--border-warm); }
+                    .bi-pill-muted   { background: #F5F1EC; color: var(--text-muted); border: 1px solid #E9E0D6; }
                     .bi-pill-wine    { background: var(--liturgical-wine); color: var(--surface-white); }
                     .bi-pill-dark    { background: var(--text-dark); color: var(--liturgical-gold); }
 
                     #admin-pane-overview .bi-scroll-hint-mobile {
                         display: none;
-                        font-size: 0.73rem;
+                        font-size: 0.7rem;
                         color: var(--text-muted);
-                        margin-bottom: 0.5rem;
+                        margin-bottom: 0.4rem;
                     }
 
-                    /* Modal Individual */
+                    /* Modal Individual Compacto */
                     #modalHistoricoUsuario .bi-member-kpi-grid {
                         display: grid;
                         grid-template-columns: repeat(4, minmax(0, 1fr));
-                        gap: 0.6rem;
-                        margin-bottom: 0.9rem;
+                        gap: 0.5rem;
+                        margin-bottom: 0.75rem;
                     }
 
                     #modalHistoricoUsuario .bi-member-kpi {
                         background: var(--surface-white);
                         border: 1px solid var(--border-warm);
-                        border-radius: 10px;
-                        padding: 0.65rem 0.8rem;
+                        border-radius: 9px;
+                        padding: 0.5rem 0.65rem;
                     }
 
                     #modalHistoricoUsuario .bi-member-kpi span {
                         display: block;
-                        font-size: 0.66rem;
+                        font-size: 0.63rem;
                         font-weight: 700;
                         text-transform: uppercase;
                         color: var(--text-muted);
                     }
 
                     #modalHistoricoUsuario .bi-member-kpi strong {
-                        font-size: 1.28rem;
+                        font-size: 1.15rem;
                         font-weight: 800;
                         color: var(--text-dark);
                     }
 
                     /* ======================================================================
-                       RESPONSIVIDADE FLUIDA EXCLUSIVA PARA MOBILE (< 768px)
-                       Desktop/Laptop permanece integralmente preservado acima
+                       MOBILE COMPACTO E FLUIDO (< 768px)
                        ====================================================================== */
                     @media (max-width: 767.98px) {
                         #admin-pane-overview .bi-topbar {
-                            padding: 0.9rem;
-                            gap: 0.7rem;
+                            padding: 0.65rem 0.75rem;
+                            gap: 0.55rem;
                         }
 
                         #admin-pane-overview .bi-topbar-title {
@@ -16716,50 +16820,43 @@ MARIA FERNANDA 30/10</textarea>
                             width: 100%;
                             display: grid;
                             grid-template-columns: 1fr 1fr;
-                            gap: 0.5rem;
+                            gap: 0.45rem;
                         }
 
                         #admin-pane-overview .bi-topbar-actions .btn {
-                            min-height: 40px;
-                            font-size: 0.8rem;
+                            min-height: 36px;
+                            font-size: 0.76rem;
                         }
 
-                        /* Slicers confortáveis e sem compressão de texto */
                         #admin-pane-overview .bi-slicer-bar {
                             grid-template-columns: 1fr 1fr;
-                            gap: 0.7rem;
-                            padding: 0.9rem;
-                        }
-
-                        #admin-pane-overview .bi-slicer-group label {
-                            font-size: 0.7rem;
-                            margin-bottom: 0.3rem;
+                            gap: 0.5rem;
+                            padding: 0.65rem 0.75rem;
                         }
 
                         #admin-pane-overview .bi-slicer-bar .form-select,
                         #admin-pane-overview .bi-slicer-bar .form-control,
                         #admin-pane-overview .bi-btn-reset {
-                            height: 42px !important;
-                            min-height: 42px !important;
-                            font-size: 0.88rem !important;
-                            padding: 0.35rem 0.7rem !important;
+                            height: 38px !important;
+                            min-height: 38px !important;
+                            font-size: 0.84rem !important;
                         }
 
                         #bi-autocomplete-wrap #bi-filtro-busca {
-                            padding-left: 2.15rem !important;
-                            padding-right: 2.4rem !important;
+                            padding-left: 2rem !important;
+                            padding-right: 2.2rem !important;
                         }
 
                         #bi-autocomplete-wrap .bi-clear-busca-btn,
                         #bi-autocomplete-wrap .bi-chevron-busca-btn {
-                            width: 34px;
-                            height: 34px;
+                            width: 30px;
+                            height: 30px;
                         }
 
                         .bi-ac-option {
-                            padding: 0.65rem 0.75rem;
-                            font-size: 0.88rem;
-                            min-height: 42px;
+                            padding: 0.55rem 0.7rem;
+                            font-size: 0.84rem;
+                            min-height: 38px;
                             display: flex;
                             align-items: center;
                         }
@@ -16771,123 +16868,93 @@ MARIA FERNANDA 30/10</textarea>
                             width: 100%;
                         }
 
-                        /* Sub-abas fáceis de tocar */
+                        /* Sub-abas compactas e discretas no Mobile */
                         #admin-pane-overview .bi-subtabs {
-                            padding: 0.7rem 0.9rem;
-                            gap: 0.5rem;
+                            padding: 0.4rem 0.75rem;
+                            gap: 0.35rem;
                         }
 
                         #admin-pane-overview .bi-subtab-btn {
-                            min-height: 40px;
-                            padding: 0.5rem 0.95rem;
-                            font-size: 0.82rem;
+                            min-height: 30px;
+                            padding: 0.28rem 0.65rem;
+                            font-size: 0.74rem;
                         }
 
                         #admin-pane-overview .bi-body {
-                            padding: 0.9rem;
+                            padding: 0.68rem 0.75rem;
                         }
 
-                        /* KPIs arejados em 2x2 */
                         #admin-pane-overview .bi-kpi-grid,
                         #modalHistoricoUsuario .bi-member-kpi-grid {
                             grid-template-columns: repeat(2, minmax(0, 1fr));
-                            gap: 0.65rem;
-                            margin-bottom: 1rem;
+                            gap: 0.5rem;
+                            margin-bottom: 0.7rem;
                         }
 
                         #admin-pane-overview .bi-kpi-tile {
-                            padding: 0.85rem 0.9rem;
+                            padding: 0.55rem 0.68rem;
                         }
 
                         #admin-pane-overview .bi-kpi-value {
-                            font-size: 1.4rem;
+                            font-size: 1.2rem;
                         }
 
                         #admin-pane-overview .bi-kpi-meta {
-                            font-size: 0.74rem;
-                            line-height: 1.3;
+                            font-size: 0.69rem;
+                            line-height: 1.25;
                         }
 
-                        /* Painéis e gráficos confortáveis */
                         #admin-pane-overview .bi-panel {
-                            padding: 1rem 0.95rem;
-                        }
-
-                        #admin-pane-overview .bi-panel-head {
-                            flex-wrap: wrap;
-                            margin-bottom: 0.9rem;
+                            padding: 0.72rem 0.75rem;
                         }
 
                         #admin-pane-overview .bi-donut-wrap {
                             flex-direction: column;
                             align-items: stretch;
-                            gap: 1rem;
+                            gap: 0.75rem;
                         }
 
                         #admin-pane-overview .bi-donut-svg-box {
-                            width: 136px;
-                            height: 136px;
+                            width: 110px;
+                            height: 110px;
                             margin: 0 auto;
                         }
 
                         #admin-pane-overview .bi-legend-btn {
-                            min-height: 42px;
-                            padding: 0.5rem 0.7rem;
-                            font-size: 0.82rem;
-                        }
-
-                        #admin-pane-overview .bi-mini-pill-filter {
-                            min-height: 34px;
-                            padding: 0.3rem 0.75rem;
-                            font-size: 0.74rem;
-                        }
-
-                        #admin-pane-overview .bi-turno-card-btn,
-                        #admin-pane-overview .bi-fn-bar-btn {
-                            padding: 0.65rem 0.75rem;
-                            min-height: 48px;
+                            min-height: 36px;
+                            padding: 0.35rem 0.6rem;
+                            font-size: 0.78rem;
                         }
 
                         #admin-pane-overview .bi-carga-row,
                         #admin-pane-overview .bi-rank-row {
-                            padding: 0.62rem 0.75rem;
-                            font-size: 0.84rem;
+                            padding: 0.45rem 0.62rem;
+                            font-size: 0.8rem;
                         }
 
-                        #admin-pane-overview .bi-carga-name {
-                            font-size: 0.84rem;
-                        }
+                        #admin-pane-overview .bi-carga-name { font-size: 0.8rem; }
+                        #admin-pane-overview .bi-carga-role { display: none; }
 
-                        #admin-pane-overview .bi-carga-role {
-                            display: none;
-                        }
-
-                        /* Tabelas com rolagem controlada e boa leitura */
-                        #admin-pane-overview .bi-scroll-hint-mobile {
-                            display: block;
-                        }
-
-                        #admin-pane-overview .bi-table-scroll {
-                            max-height: 58vh;
-                        }
+                        #admin-pane-overview .bi-scroll-hint-mobile { display: block; }
+                        #admin-pane-overview .bi-table-scroll { max-height: 55vh; }
 
                         #admin-pane-overview .bi-table tbody td,
                         #modalHistoricoUsuario .bi-table tbody td {
-                            padding: 0.65rem 0.75rem !important;
-                            font-size: 0.84rem !important;
+                            padding: 0.5rem 0.65rem !important;
+                            font-size: 0.8rem !important;
                         }
 
                         #tabela-bi-frequencia th:first-child,
                         #tabela-bi-frequencia td:first-child,
                         #tabela-bi-ocorrencias th:first-child,
                         #tabela-bi-ocorrencias td:first-child {
-                            min-width: 148px;
-                            max-width: 165px;
+                            min-width: 138px;
+                            max-width: 152px;
                         }
 
                         .bi-member-btn {
-                            font-size: 0.84rem;
-                            padding: 0.25rem 0.4rem;
+                            font-size: 0.8rem;
+                            padding: 0.18rem 0.35rem;
                         }
                     }
                 `;
@@ -16899,15 +16966,15 @@ MARIA FERNANDA 30/10</textarea>
             // ------------------------------------------------------------------------
             function construirEstruturaResumoBI() {
                 const pane = document.getElementById("admin-pane-overview");
-                if (!pane || pane.dataset.biModernoV4 === "true") return;
+                if (!pane || pane.dataset.biModernoV5 === "true") return;
 
-                pane.dataset.biModernoV4 = "true";
+                pane.dataset.biModernoV5 = "true";
                 pane.innerHTML = `
-                    <div class="bi-shell mb-4">
+                    <div class="bi-shell mb-3">
                         <div class="bi-topbar">
                             <div class="bi-topbar-title">
                                 <h5>Resumo Analítico</h5>
-                                <span id="overview-badge-media" class="bi-panel-badge">Média: 0/membro</span>
+                               
                             </div>
                             <div class="bi-topbar-actions">
                                 <button type="button" class="btn btn-sm btn-outline-wine fw-semibold" onclick="exportarRelatorioAdminPDF('OVERVIEW')">
@@ -16952,7 +17019,7 @@ MARIA FERNANDA 30/10</textarea>
                                            aria-autocomplete="list" aria-controls="bi-autocomplete-dropdown">
                                     <button type="button" id="bi-btn-chevron-busca" class="bi-chevron-busca-btn"
                                             onclick="window.alternarListaSuspensaBuscaBI()" title="Abrir lista de membros">
-                                        <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i>
+                                        <i class="fa-solid fa-chevron-down" style="font-size: 0.68rem;"></i>
                                     </button>
                                     <button type="button" id="bi-btn-clear-busca" class="bi-clear-busca-btn d-none"
                                             onclick="window.limparCampoBuscaResumoBI()" title="Limpar busca">
@@ -16968,19 +17035,20 @@ MARIA FERNANDA 30/10</textarea>
 
                         <div id="bi-active-filters-strip" class="bi-active-filters d-none"></div>
 
+                        <!-- Sub-abas renomeadas e compactas -->
                         <div class="bi-subtabs" role="tablist">
                             <button type="button" id="bi-subtab-visao-geral" class="bi-subtab-btn active"
                                     onclick="window.alternarSubAbaResumoBI('visao-geral')">
-                                Visão Geral
+                                Visão geral
                             </button>
                             <button type="button" id="bi-subtab-frequencia" class="bi-subtab-btn"
                                     onclick="window.alternarSubAbaResumoBI('frequencia')">
-                                Frequência e Escalas
+                                Frequência
                                 <span id="bi-count-subtab-membros" class="bi-subtab-count">0</span>
                             </button>
                             <button type="button" id="bi-subtab-ocorrencias" class="bi-subtab-btn"
                                     onclick="window.alternarSubAbaResumoBI('ocorrencias')">
-                                Ocorrências e Trocas
+                                Ocorrências
                                 <span id="bi-count-subtab-ocorrencias" class="bi-subtab-count">0</span>
                             </button>
                         </div>
@@ -16990,7 +17058,7 @@ MARIA FERNANDA 30/10</textarea>
                             <div id="bi-pane-visao-geral">
                                 <div class="bi-kpi-grid" id="bi-kpis-gerais"></div>
 
-                                <div class="row g-3">
+                                <div class="row g-2">
                                     <div class="col-12 col-md-6 col-xl-4">
                                         <div class="bi-panel" id="bi-panel-donut">
                                             <div class="bi-panel-head">
@@ -17043,7 +17111,7 @@ MARIA FERNANDA 30/10</textarea>
                                 </div>
                             </div>
 
-                            <!-- SUB-ABA 2: FREQUÊNCIA E ESCALAS -->
+                            <!-- SUB-ABA 2: FREQUÊNCIA (SEM COLUNA DE DISPONIBILIDADE) -->
                             <div id="bi-pane-frequencia" class="d-none">
                                 <div class="bi-scroll-hint-mobile">Deslize lateralmente para visualizar todos os indicadores</div>
                                 <div class="bi-table-scroll">
@@ -17059,7 +17127,6 @@ MARIA FERNANDA 30/10</textarea>
                                                 <th class="text-center">Faltas</th>
                                                 <th class="text-center">Trocas Efet.</th>
                                                 <th>Carga</th>
-                                                <th class="text-end">Disp.</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tbody-overview-equilibrio"></tbody>
@@ -17067,7 +17134,7 @@ MARIA FERNANDA 30/10</textarea>
                                 </div>
                             </div>
 
-                            <!-- SUB-ABA 3: OCORRÊNCIAS E TROCAS (SEM BOTÃO VER HISTÓRICO; NOME CLICÁVEL) -->
+                            <!-- SUB-ABA 3: OCORRÊNCIAS (SEM BOTÃO VER HISTÓRICO; NOME CLICÁVEL) -->
                             <div id="bi-pane-ocorrencias" class="d-none">
                                 <div class="bi-scroll-hint-mobile">Deslize lateralmente para visualizar o histórico consolidado</div>
                                 <div class="bi-table-scroll">
@@ -17093,7 +17160,20 @@ MARIA FERNANDA 30/10</textarea>
                 const inputBusca = document.getElementById("bi-filtro-busca");
                 if (inputBusca) {
                     inputBusca.addEventListener("input", () => {
-                        estadoResumoBI.busca = inputBusca.value;
+                        const valorDigitado = inputBusca.value;
+                        const normDigitado = normalizarTexto(valorDigitado);
+                        estadoResumoBI.busca = valorDigitado;
+
+                        // Verifica correspondência exata se o usuário digitou o nome completo
+                        const matchExato = (pessoasAltarCache || []).find(p => p.chave === normDigitado);
+                        if (matchExato) {
+                            estadoResumoBI.membroSelecionadoChave = matchExato.chave;
+                            estadoResumoBI.membroSelecionadoId = matchExato.idPrincipal;
+                        } else {
+                            estadoResumoBI.membroSelecionadoChave = "";
+                            estadoResumoBI.membroSelecionadoId = null;
+                        }
+
                         window.renderizarRelatorioOverview();
                         renderizarListaSuspensaBuscaBI();
                     });
@@ -17134,6 +17214,9 @@ MARIA FERNANDA 30/10</textarea>
                 if (!strip) return;
 
                 const chips = [];
+                if (estadoResumoBI.membroSelecionadoChave && estadoResumoBI.busca) {
+                    chips.push(`<button type="button" class="bi-filter-chip" onclick="window.limparCampoBuscaResumoBI()">Membro: ${escaparHTML(estadoResumoBI.busca)} &times;</button>`);
+                }
                 if (estadoResumoBI.status !== "TODOS") {
                     const labels = { CONFIRMADO: "Confirmadas", TROCA: "Trocas Efetivadas", PENDENTE: "Faltas / Abertas" };
                     chips.push(`<button type="button" class="bi-filter-chip" onclick="window.toggleFiltroGraficoBI('status', 'TODOS')">Status: ${labels[estadoResumoBI.status] || estadoResumoBI.status} &times;</button>`);
@@ -17156,7 +17239,7 @@ MARIA FERNANDA 30/10</textarea>
                     <span class="fw-bold text-dark">Filtros ativos:</span>
                     ${chips.join("")}
                     <button type="button" class="btn btn-link btn-sm text-wine p-0 ms-auto text-decoration-none fw-bold"
-                            style="font-size: 0.74rem;" onclick="window.limparFiltrosResumoBI()">
+                            style="font-size: 0.72rem;" onclick="window.limparFiltrosResumoBI()">
                         Limpar todos
                     </button>
                 `;
@@ -17202,6 +17285,8 @@ MARIA FERNANDA 30/10</textarea>
                 estadoResumoBI.turno = "TODOS";
                 estadoResumoBI.funcao = "TODOS";
                 estadoResumoBI.busca = "";
+                estadoResumoBI.membroSelecionadoChave = "";
+                estadoResumoBI.membroSelecionadoId = null;
 
                 const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
                 setVal("bi-filtro-periodo", "TODOS");
@@ -17217,20 +17302,21 @@ MARIA FERNANDA 30/10</textarea>
             };
 
             // ------------------------------------------------------------------------
-            // 8. GRÁFICOS INTERATIVOS
+            // 8. GRÁFICOS INTERATIVOS (USANDO CONTAGEM UNIFICADA DE TROCAS APROVADAS)
             // ------------------------------------------------------------------------
-            function renderizarDonutInterativo(escalasBaseStatus) {
+            function renderizarDonutInterativo(escalasBaseStatus, idsEscalasTroca, trocasExtrasNaoVinculadas) {
                 const boxStatus = document.getElementById("bi-grafico-status");
                 const badgeTotal = document.getElementById("bi-badge-total-posicoes");
                 const panelDonut = document.getElementById("bi-panel-donut");
                 if (!boxStatus) return;
 
-                const total = escalasBaseStatus.length;
-                if (badgeTotal) badgeTotal.textContent = `${total} posições`;
+                const qtdConf = escalasBaseStatus.filter(e => obterStatusAnaliticoEscala(e, idsEscalasTroca) === "CONFIRMADO").length;
+                const qtdTrocaEscalas = escalasBaseStatus.filter(e => obterStatusAnaliticoEscala(e, idsEscalasTroca) === "TROCA").length;
+                const qtdTroca = qtdTrocaEscalas + (trocasExtrasNaoVinculadas?.length || 0);
+                const qtdFalta = escalasBaseStatus.filter(e => obterStatusAnaliticoEscala(e, idsEscalasTroca) === "PENDENTE").length;
+                const total = qtdConf + qtdTroca + qtdFalta;
 
-                const qtdConf = escalasBaseStatus.filter(e => obterStatusEfetivoEscala(e) === "CONFIRMADO").length;
-                const qtdTroca = escalasBaseStatus.filter(e => obterStatusEfetivoEscala(e) === "TROCA").length;
-                const qtdFalta = escalasBaseStatus.filter(e => obterStatusEfetivoEscala(e) === "PENDENTE").length;
+                if (badgeTotal) badgeTotal.textContent = `${total} registros`;
 
                 const filtroSt = estadoResumoBI.status;
                 if (panelDonut) {
@@ -17405,7 +17491,7 @@ MARIA FERNANDA 30/10</textarea>
                         mostrarTooltipBI(
                             ev,
                             label,
-                            `<div class="bi-tip-row"><span>Posições:</span><strong>${qtd} de ${total}</strong></div>
+                            `<div class="bi-tip-row"><span>Registros:</span><strong>${qtd} de ${total}</strong></div>
                              <div class="bi-tip-row"><span>Participação:</span><strong>${perc}%</strong></div>`,
                             filtroSt === st ? "Clique para voltar à visão completa" : "Clique para filtrar por este status"
                         );
@@ -17429,23 +17515,28 @@ MARIA FERNANDA 30/10</textarea>
                 });
             }
 
-            function renderizarBarrasTurnoInterativas(escalasBaseTurno) {
+            function renderizarBarrasTurnoInterativas(escalasBaseTurno, idsEscalasTroca, trocasExtrasNaoVinculadas) {
                 const boxTurnos = document.getElementById("overview-box-turnos");
                 const badgeTurno = document.getElementById("bi-badge-turno-ativo");
                 if (!boxTurnos) return;
 
                 if (badgeTurno) badgeTurno.textContent = estadoResumoBI.turno === "TODOS" ? "Todos" : estadoResumoBI.turno;
 
-                const total = escalasBaseTurno.length;
+                const incluirExtrasTroca = (estadoResumoBI.status === "TODOS" || estadoResumoBI.status === "TROCA");
                 const turnos = ["Manhã", "Tarde", "Noite"].map(t => {
                     const itens = escalasBaseTurno.filter(e => e.turno === t);
-                    const qtd = itens.length;
-                    const conf = itens.filter(e => obterStatusEfetivoEscala(e) === "CONFIRMADO").length;
-                    const troca = itens.filter(e => obterStatusEfetivoEscala(e) === "TROCA").length;
-                    const falta = itens.filter(e => obterStatusEfetivoEscala(e) === "PENDENTE").length;
-                    const perc = total > 0 ? Math.round((qtd / total) * 100) : 0;
-                    return { turno: t, qtd, conf, troca, falta, perc };
+                    const extrasTurno = incluirExtrasTroca
+                        ? (trocasExtrasNaoVinculadas || []).filter(tr => tr.turno === t).length
+                        : 0;
+                    const conf = itens.filter(e => obterStatusAnaliticoEscala(e, idsEscalasTroca) === "CONFIRMADO").length;
+                    const troca = itens.filter(e => obterStatusAnaliticoEscala(e, idsEscalasTroca) === "TROCA").length + extrasTurno;
+                    const falta = itens.filter(e => obterStatusAnaliticoEscala(e, idsEscalasTroca) === "PENDENTE").length;
+                    const qtd = conf + troca + falta;
+                    return { turno: t, qtd, conf, troca, falta };
                 });
+
+                const total = turnos.reduce((acc, t) => acc + t.qtd, 0);
+                turnos.forEach(t => { t.perc = total > 0 ? Math.round((t.qtd / total) * 100) : 0; });
 
                 const miniLegenda = `
                     <div class="bi-mini-legend-row">
@@ -17480,10 +17571,10 @@ MARIA FERNANDA 30/10</textarea>
                                 data-troca="${tc.troca}"
                                 data-falta="${tc.falta}">
                             <div class="d-flex justify-content-between align-items-baseline mb-1">
-                                <span class="fw-bold text-dark" style="font-size: 0.79rem;">
+                                <span class="fw-bold text-dark" style="font-size: 0.76rem;">
                                     ${tc.turno} <span class="text-muted fw-normal">(${HORARIOS_TURNO[tc.turno] || ""})</span>
                                 </span>
-                                <span class="fw-bold text-wine" style="font-size: 0.78rem;">
+                                <span class="fw-bold text-wine" style="font-size: 0.75rem;">
                                     ${tc.qtd} <span class="text-muted fw-normal">(${tc.perc}%)</span>
                                 </span>
                             </div>
@@ -17519,7 +17610,7 @@ MARIA FERNANDA 30/10</textarea>
                 });
             }
 
-            function renderizarBarrasFuncoesInterativas(escalasBaseFuncao) {
+            function renderizarBarrasFuncoesInterativas(escalasBaseFuncao, idsEscalasTroca) {
                 const boxFuncoes = document.getElementById("overview-box-funcoes");
                 const badgeFn = document.getElementById("bi-badge-funcao-ativa");
                 if (!boxFuncoes) return;
@@ -17533,7 +17624,7 @@ MARIA FERNANDA 30/10</textarea>
                         mapa.set(fn, { fn, qtd: 0, faltas: 0, trocas: 0, membrosSet: new Set() });
                     }
                     const item = mapa.get(fn);
-                    const stEfetivo = obterStatusEfetivoEscala(e);
+                    const stEfetivo = obterStatusAnaliticoEscala(e, idsEscalasTroca);
                     item.qtd += 1;
                     if (stEfetivo === "PENDENTE") item.faltas += 1;
                     if (stEfetivo === "TROCA") item.trocas += 1;
@@ -17566,11 +17657,11 @@ MARIA FERNANDA 30/10</textarea>
                                 data-faltas="${item.faltas}"
                                 data-trocas="${item.trocas}">
                             <div class="d-flex justify-content-between align-items-baseline">
-                                <span class="fw-bold text-dark" style="font-size: 0.75rem;">
+                                <span class="fw-bold text-dark" style="font-size: 0.73rem;">
                                     ${escaparHTML(item.fn)}
-                                    <span class="text-muted fw-normal ms-1" style="font-size: 0.69rem;">${item.membrosSet.size} memb.</span>
+                                    <span class="text-muted fw-normal ms-1" style="font-size: 0.67rem;">${item.membrosSet.size} memb.</span>
                                 </span>
-                                <span class="fw-bold text-wine" style="font-size: 0.77rem;">
+                                <span class="fw-bold text-wine" style="font-size: 0.74rem;">
                                     ${item.qtd} <span class="text-muted fw-normal">(${perc}%)</span>
                                 </span>
                             </div>
@@ -17603,7 +17694,7 @@ MARIA FERNANDA 30/10</textarea>
             }
 
             // ------------------------------------------------------------------------
-            // 9. RENDERIZAÇÃO PRINCIPAL DO RESUMO (SOMENTE ALTAR + ZERO DUPLICIDADES)
+            // 9. RENDERIZAÇÃO PRINCIPAL (SELEÇÃO EXATA + CARGA COMPLETA + TROCAS UNIFICADAS)
             // ------------------------------------------------------------------------
             window.renderizarRelatorioOverview = function () {
                 construirEstruturaResumoBI();
@@ -17620,13 +17711,31 @@ MARIA FERNANDA 30/10</textarea>
                 const filtroTurno = estadoResumoBI.turno;
                 const filtroFuncao = estadoResumoBI.funcao;
 
+                // Seleção estrita por usuário exato quando selecionado na lista ou nome completo digitado
+                const matchExatoPorTexto = termo ? pessoasAltar.find(p => p.chave === termo) : null;
+                const chaveExataAtiva = estadoResumoBI.membroSelecionadoChave || (matchExatoPorTexto ? matchExatoPorTexto.chave : "");
+                const idExatoAtivo = estadoResumoBI.membroSelecionadoId || (matchExatoPorTexto ? matchExatoPorTexto.idPrincipal : null);
+
                 const pessoasFiltradas = pessoasAltar.filter(p => {
                     if (filtroPapel !== "TODOS" && !p.papel.includes(filtroPapel)) return false;
-                    if (termo && !p.chave.includes(termo)) return false;
+                    if (chaveExataAtiva) {
+                        return (idExatoAtivo && p.ids.has(Number(idExatoAtivo))) || p.chave === chaveExataAtiva;
+                    }
+                    if (termo) {
+                        return p.chave.includes(termo);
+                    }
                     return true;
                 });
 
-                // Mantém apenas escalas de membros que servem no altar (exclui Roberta, Veriane e coord. pura)
+                const chavesPessoasFiltradas = new Set(pessoasFiltradas.map(p => p.chave));
+
+                // Fonte única de trocas aprovadas / efetivadas para todos os cards
+                const trocasAprovadasTodas = obterTrocasAprovadasConsolidadas(pessoasAltar);
+                const idsEscalasComTrocaAprovada = new Set(
+                    trocasAprovadasTodas.filter(t => t.escalaId).map(t => Number(t.escalaId))
+                );
+
+                // Escalas pertencentes a membros do altar no recorte de período
                 const escalaEhDeMembroAltar = (e) => {
                     if (normalizarTexto(e.coroinhaNome) === "consertar") return false;
                     if (ehPerfilSomenteCoordenacao(e.coroinhaNome, null)) return false;
@@ -17634,11 +17743,8 @@ MARIA FERNANDA 30/10</textarea>
                 };
 
                 const escalaPertenceAsPessoasFiltradas = (e) => {
-                    if (filtroPapel === "TODOS" && !termo) return true;
-                    return pessoasFiltradas.some(p =>
-                        pessoaCorresponde(p, e.coroinhaId, e.coroinhaNome) ||
-                        (escalaEhTrocaEfetiva(e) && pessoaCorresponde(p, null, e.substitutoNome))
-                    );
+                    if (filtroPapel === "TODOS" && !termo && !chaveExataAtiva) return true;
+                    return pessoasFiltradas.some(p => pessoaCorresponde(p, e.coroinhaId, e.coroinhaNome));
                 };
 
                 const escalasDoPeriodoGeral = (escalasDB || []).filter(e =>
@@ -17648,26 +17754,51 @@ MARIA FERNANDA 30/10</textarea>
 
                 const escalasBaseComum = escalasDoPeriodoGeral.filter(escalaPertenceAsPessoasFiltradas);
 
+                // Trocas aprovadas filtradas pelo recorte (período, pessoa, turno, função)
+                const trocasAprovadasBaseComum = trocasAprovadasTodas.filter(tr => {
+                    if (filtroPeriodo !== "TODOS" && extrairMesAno(tr.data) !== filtroPeriodo) return false;
+                    if (!chavesPessoasFiltradas.has(tr.solicitanteChave)) return false;
+                    return true;
+                });
+
+                const trocasAprovadasFiltradas = trocasAprovadasBaseComum.filter(tr => {
+                    if (filtroStatus !== "TODOS" && filtroStatus !== "TROCA") return false;
+                    if (filtroTurno !== "TODOS" && tr.turno && tr.turno !== filtroTurno) return false;
+                    if (filtroFuncao !== "TODOS" && tr.funcao && tr.funcao !== filtroFuncao) return false;
+                    return true;
+                });
+
+                const trocasExtrasParaDonut = trocasAprovadasBaseComum.filter(tr =>
+                    !tr.vinculadaEmEscalaDB &&
+                    (filtroTurno === "TODOS" || !tr.turno || tr.turno === filtroTurno) &&
+                    (filtroFuncao === "TODOS" || !tr.funcao || tr.funcao === filtroFuncao)
+                );
+
+                const trocasExtrasParaTurnos = trocasAprovadasBaseComum.filter(tr =>
+                    !tr.vinculadaEmEscalaDB &&
+                    (filtroFuncao === "TODOS" || !tr.funcao || tr.funcao === filtroFuncao)
+                );
+
                 const escalasParaDonutStatus = escalasBaseComum.filter(e =>
                     (filtroTurno === "TODOS" || e.turno === filtroTurno) &&
                     (filtroFuncao === "TODOS" || String(e.funcao || "").toUpperCase() === filtroFuncao)
                 );
 
                 const escalasParaTurnos = escalasBaseComum.filter(e =>
-                    (filtroStatus === "TODOS" || obterStatusEfetivoEscala(e) === filtroStatus) &&
+                    (filtroStatus === "TODOS" || obterStatusAnaliticoEscala(e, idsEscalasComTrocaAprovada) === filtroStatus) &&
                     (filtroFuncao === "TODOS" || String(e.funcao || "").toUpperCase() === filtroFuncao)
                 );
 
                 const escalasParaFuncoes = escalasBaseComum.filter(e =>
-                    (filtroStatus === "TODOS" || obterStatusEfetivoEscala(e) === filtroStatus) &&
+                    (filtroStatus === "TODOS" || obterStatusAnaliticoEscala(e, idsEscalasComTrocaAprovada) === filtroStatus) &&
                     (filtroTurno === "TODOS" || e.turno === filtroTurno)
                 );
 
                 const escalasFiltradas = escalasParaDonutStatus.filter(e =>
-                    filtroStatus === "TODOS" || obterStatusEfetivoEscala(e) === filtroStatus
+                    filtroStatus === "TODOS" || obterStatusAnaliticoEscala(e, idsEscalasComTrocaAprovada) === filtroStatus
                 );
 
-                // Consolidação por pessoa (1 registro único por coroinha/cerimoniário)
+                // Consolidação por pessoa (todos os coroinhas e cerimoniários filtrados, incluindo 0 escalas)
                 const consolidadoPorPessoa = pessoasFiltradas.map(p => {
                     const mapaEscalasPessoa = new Map();
                     escalasFiltradas.forEach(e => {
@@ -17681,8 +17812,7 @@ MARIA FERNANDA 30/10</textarea>
                     const manha = escPessoa.filter(e => e.turno === "Manhã").length;
                     const tarde = escPessoa.filter(e => e.turno === "Tarde").length;
                     const noite = escPessoa.filter(e => e.turno === "Noite").length;
-                    const faltasEscala = escPessoa.filter(e => obterStatusEfetivoEscala(e) === "PENDENTE");
-                    const trocasEscalaEfetivas = escPessoa.filter(e => obterStatusEfetivoEscala(e) === "TROCA");
+                    const faltasEscala = escPessoa.filter(e => obterStatusAnaliticoEscala(e, idsEscalasComTrocaAprovada) === "PENDENTE");
 
                     const ocorrenciasPessoa = [];
                     const idsEscalaFaltaContados = new Set();
@@ -17712,53 +17842,20 @@ MARIA FERNANDA 30/10</textarea>
                         });
                     }
 
-                    const chavesTrocaContadas = new Set();
-                    if (filtroStatus === "TODOS" || filtroStatus === "TROCA") {
-                        (historicoTrocasDB || []).forEach(t => {
-                            if (!trocaEstaAprovada(t)) return;
-                            const d1 = t.data1 || t.data_1 || "";
-                            const turno1 = t.turno1 || t.turno_1 || "";
-                            if (filtroPeriodo !== "TODOS" && extrairMesAno(d1) !== filtroPeriodo) return;
-                            if (filtroTurno !== "TODOS" && turno1 && turno1 !== filtroTurno) return;
-                            const solNome = t.solicitanteNome || t.solicitante || "";
-                            if (!pessoaCorresponde(p, t.solicitanteId || t.solicitante_id, solNome)) return;
-
-                            const idOrig = t.escalaOrigemId || t.escala_origem_id;
-                            const chT = idOrig ? `ID_${idOrig}` : `${d1}_${turno1}`;
-                            if (chavesTrocaContadas.has(chT)) return;
-                            chavesTrocaContadas.add(chT);
-                            if (d1 && turno1) chavesTrocaContadas.add(`${d1}_${turno1}`);
-
-                            const subNome = t.substitutoNome || t.substituto || "-";
-                            ocorrenciasPessoa.push({
-                                categoria: "TROCA",
-                                data: d1,
-                                resumo: `${t.tipo || "Substituição"} aprovada em ${formatarDataBR(d1)} (${subNome})`
-                            });
+                    // Trocas aprovadas/efetivadas vindas da fonte unificada
+                    const trocasDaPessoa = trocasAprovadasFiltradas.filter(tr => tr.solicitanteChave === p.chave);
+                    trocasDaPessoa.forEach(tr => {
+                        ocorrenciasPessoa.push({
+                            categoria: "TROCA",
+                            data: tr.data || "",
+                            resumo: tr.resumo
                         });
-
-                        trocasEscalaEfetivas.forEach(te => {
-                            if (chavesTrocaContadas.has(`ID_${te.id}`) || chavesTrocaContadas.has(`${te.data}_${te.turno}`)) return;
-                            chavesTrocaContadas.add(`ID_${te.id}`);
-                            chavesTrocaContadas.add(`${te.data}_${te.turno}`);
-                            ocorrenciasPessoa.push({
-                                categoria: "TROCA",
-                                data: te.data || "",
-                                resumo: `Substituição efetivada em ${formatarDataBR(te.data)} (${te.substitutoNome})`
-                            });
-                        });
-                    }
+                    });
 
                     ocorrenciasPessoa.sort((a, b) => String(b.data).localeCompare(String(a.data)));
 
                     const totalFaltas = ocorrenciasPessoa.filter(o => o.categoria === "FALTA").length;
-                    const totalTrocas = ocorrenciasPessoa.filter(o => o.categoria === "TROCA").length;
-
-                    const respondeuDisp = (disponibilidadesDB || []).some(d => {
-                        const dId = d.coroinhaId || d.coroinha_id;
-                        const dEmail = String(d.email || "").trim().toLowerCase();
-                        return pessoaCorresponde(p, dId, d.nome) || (dEmail && p.emails.has(dEmail));
-                    });
+                    const totalTrocas = trocasDaPessoa.length;
 
                     return {
                         ...p,
@@ -17768,45 +17865,49 @@ MARIA FERNANDA 30/10</textarea>
                         total: escPessoa.length,
                         faltas: totalFaltas,
                         trocas: totalTrocas,
-                        totalOcorrencias: ocorrenciasPessoa.length,
-                        ultimoRegistro: ocorrenciasPessoa[0]?.resumo || "-",
-                        respondeuDisp
+                        totalOcorrencias: totalFaltas + totalTrocas,
+                        ultimoRegistro: ocorrenciasPessoa[0]?.resumo || "-"
                     };
                 });
 
-                const filtroEscalaAtivo = (filtroTurno !== "TODOS" || filtroFuncao !== "TODOS" || filtroStatus !== "TODOS");
-                const membrosParaExibir = filtroEscalaAtivo
-                    ? consolidadoPorPessoa.filter(m => m.total > 0 || m.totalOcorrencias > 0)
-                    : consolidadoPorPessoa;
+                // Lista completa ordenada do maior para o menor (incluindo quem tem 0)
+                const membrosOrdenadosCarga = [...consolidadoPorPessoa].sort(
+                    (a, b) => b.total - a.total || a.nome.localeCompare(b.nome)
+                );
 
-                const membrosOrdenadosCarga = [...membrosParaExibir].sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
                 const membrosComOcorrencias = [...consolidadoPorPessoa]
                     .filter(m => m.totalOcorrencias > 0)
                     .sort((a, b) => b.faltas - a.faltas || b.trocas - a.trocas || a.nome.localeCompare(b.nome));
 
-                // KPIs Globais do Recorte
+                // KPIs consistentes com a fonte única
                 const totalEscalas = escalasFiltradas.length;
-                const qtdConfirmadas = escalasFiltradas.filter(e => obterStatusEfetivoEscala(e) === "CONFIRMADO").length;
-                const qtdTrocasEfetivas = escalasFiltradas.filter(e => obterStatusEfetivoEscala(e) === "TROCA").length;
-                const qtdFaltasEscala = escalasFiltradas.filter(e => obterStatusEfetivoEscala(e) === "PENDENTE").length;
+                const qtdConfirmadas = escalasFiltradas.filter(
+                    e => obterStatusAnaliticoEscala(e, idsEscalasComTrocaAprovada) === "CONFIRMADO"
+                ).length;
+                const qtdFaltasEscala = escalasFiltradas.filter(
+                    e => obterStatusAnaliticoEscala(e, idsEscalasComTrocaAprovada) === "PENDENTE"
+                ).length;
+                const qtdTrocasAprovadasTotal = trocasAprovadasFiltradas.length;
+                const membrosComTroca = consolidadoPorPessoa.filter(m => m.trocas > 0).length;
+                const membrosComFalta = consolidadoPorPessoa.filter(m => m.faltas > 0).length;
+
                 const taxaCobertura = totalEscalas > 0
                     ? Math.round(((totalEscalas - qtdFaltasEscala) / totalEscalas) * 100)
                     : 100;
 
-                const qtdDisp = membrosParaExibir.filter(m => m.respondeuDisp).length;
-                const taxaAdesao = membrosParaExibir.length > 0 ? Math.round((qtdDisp / membrosParaExibir.length) * 100) : 0;
-                const mediaPorMembro = membrosParaExibir.length > 0
-                    ? (totalEscalas / membrosParaExibir.length).toFixed(1).replace(".", ",")
+                const mediaPorMembro = membrosOrdenadosCarga.length > 0
+                    ? (totalEscalas / membrosOrdenadosCarga.length).toFixed(1).replace(".", ",")
                     : "0,0";
 
                 const badgeMedia = document.getElementById("overview-badge-media");
-                if (badgeMedia) badgeMedia.textContent = `Média: ${mediaPorMembro} escalas/membro`;
+                if (badgeMedia) badgeMedia.textContent = `Média: ${mediaPorMembro}/membro`;
 
                 const badgeTabMembros = document.getElementById("bi-count-subtab-membros");
                 const badgeTabOcorr = document.getElementById("bi-count-subtab-ocorrencias");
                 if (badgeTabMembros) badgeTabMembros.textContent = membrosOrdenadosCarga.length;
                 if (badgeTabOcorr) badgeTabOcorr.textContent = membrosComOcorrencias.length;
 
+                // KPIs sem qualquer menção ao formulário de disponibilidade
                 const kpisContainer = document.getElementById("bi-kpis-gerais");
                 if (kpisContainer) {
                     kpisContainer.innerHTML = `
@@ -17823,41 +17924,44 @@ MARIA FERNANDA 30/10</textarea>
                         <div class="bi-kpi-tile kpi-danger">
                             <span class="bi-kpi-label">Faltas / Pendências</span>
                             <div class="bi-kpi-value" style="color: var(--status-pending-text);">${qtdFaltasEscala}</div>
-                            <span class="bi-kpi-meta">${membrosComOcorrencias.filter(m => m.faltas > 0).length} membro(s) com falta</span>
+                            <span class="bi-kpi-meta">${membrosComFalta} membro(s) com falta</span>
                         </div>
                         <div class="bi-kpi-tile kpi-gold">
                             <span class="bi-kpi-label">Trocas Efetivadas</span>
-                            <div class="bi-kpi-value" style="color: var(--liturgical-wine);">${qtdTrocasEfetivas}</div>
-                            <span class="bi-kpi-meta">Disp.: ${qtdDisp}/${membrosParaExibir.length} (${taxaAdesao}%)</span>
+                            <div class="bi-kpi-value" style="color: var(--liturgical-wine);">${qtdTrocasAprovadasTotal}</div>
+                            <span class="bi-kpi-meta">${membrosComTroca} membro(s) com troca</span>
                         </div>
                     `;
                 }
 
-                renderizarDonutInterativo(escalasParaDonutStatus);
-                renderizarBarrasTurnoInterativas(escalasParaTurnos);
-                renderizarBarrasFuncoesInterativas(escalasParaFuncoes);
+                renderizarDonutInterativo(escalasParaDonutStatus, idsEscalasComTrocaAprovada, trocasExtrasParaDonut);
+                renderizarBarrasTurnoInterativas(escalasParaTurnos, idsEscalasComTrocaAprovada, trocasExtrasParaTurnos);
+                renderizarBarrasFuncoesInterativas(escalasParaFuncoes, idsEscalasComTrocaAprovada);
 
                 const acaoDetalhe = (m) => m.idPrincipal
                     ? `abrirHistoricoMensalUsuario(${m.idPrincipal})`
                     : `abrirHistoricoMensalPorNome('${escaparHTML(m.nome).replace(/'/g, "\\'")}')`;
 
-                // ---- MAIOR CARGA NO PERÍODO (COMPACTO E PADRONIZADO COM PONTOS DE ATENÇÃO) ----
+                // ---- MAIOR CARGA NO PERÍODO (TODOS OS MEMBROS ATIVOS, INCLUINDO ZERADOS) ----
                 const boxCarga = document.getElementById("bi-ranking-carga");
                 const badgeCarga = document.getElementById("bi-badge-carga-count");
-                const topCarga = membrosOrdenadosCarga.filter(m => m.total > 0);
-                const maxCargaRef = Math.max(LIMITE_MENSAL_REFERENCIA, ...topCarga.map(m => m.total));
+                const maxCargaRef = Math.max(LIMITE_MENSAL_REFERENCIA, ...membrosOrdenadosCarga.map(m => m.total));
 
-                if (badgeCarga) badgeCarga.textContent = `${topCarga.length} membro(s)`;
+                if (badgeCarga) badgeCarga.textContent = `${membrosOrdenadosCarga.length} membro(s)`;
 
                 if (boxCarga) {
-                    if (topCarga.length === 0) {
-                        boxCarga.innerHTML = `<div class="small text-muted text-center py-3">Nenhuma escala registrada neste filtro.</div>`;
+                    if (membrosOrdenadosCarga.length === 0) {
+                        boxCarga.innerHTML = `<div class="small text-muted text-center py-3">Nenhum membro encontrado neste filtro.</div>`;
                     } else {
-                        boxCarga.innerHTML = topCarga.slice(0, 10).map(m => {
-                            const perc = Math.min(100, Math.round((m.total / maxCargaRef) * 100));
+                        boxCarga.innerHTML = membrosOrdenadosCarga.map(m => {
+                            const perc = m.total > 0 ? Math.min(100, Math.round((m.total / maxCargaRef) * 100)) : 0;
                             const atingiuLimite = m.total >= LIMITE_MENSAL_REFERENCIA;
+                            const pillClass = m.total === 0
+                                ? "bi-pill-muted"
+                                : (atingiuLimite ? "bi-pill-wine" : "bi-pill-neutral");
+
                             return `
-                                <div class="bi-carga-row bi-interactive-el"
+                                <div class="bi-carga-row bi-interactive-el ${m.total === 0 ? 'is-zero' : ''}"
                                      onclick="${acaoDetalhe(m)}"
                                      data-nome="${escaparHTML(m.nome)}"
                                      data-papel="${escaparHTML(m.papel)}"
@@ -17872,7 +17976,7 @@ MARIA FERNANDA 30/10</textarea>
                                             <span class="bi-carga-name">${escaparHTML(m.nome)}</span>
                                             <span class="bi-carga-role">${escaparHTML(m.papel)}</span>
                                         </div>
-                                        <span class="bi-pill ${atingiuLimite ? 'bi-pill-wine' : 'bi-pill-neutral'}">${m.total} esc.</span>
+                                        <span class="bi-pill ${pillClass}">${m.total} esc.</span>
                                     </div>
                                     <div class="bi-carga-track">
                                         <div class="bi-carga-fill ${atingiuLimite ? 'is-max' : ''}" style="width:${perc}%;"></div>
@@ -17887,7 +17991,7 @@ MARIA FERNANDA 30/10</textarea>
                                     ev,
                                     card.dataset.nome,
                                     `<div class="bi-tip-row"><span>Papel:</span><strong>${card.dataset.papel}</strong></div>
-                                     <div class="bi-tip-row"><span>Total no período:</span><strong>${card.dataset.total} escala(s)</strong></div>
+                                     <div class="bi-tip-row"><span>Total no recorte:</span><strong>${card.dataset.total} escala(s)</strong></div>
                                      <div class="bi-tip-row"><span>Manhã / Tarde / Noite:</span><strong>${card.dataset.manha} / ${card.dataset.tarde} / ${card.dataset.noite}</strong></div>
                                      <div class="bi-tip-row"><span>Faltas / Trocas efet.:</span><strong>${card.dataset.faltas} / ${card.dataset.trocas}</strong></div>`,
                                     "Clique para abrir o resumo individual"
@@ -17900,14 +18004,14 @@ MARIA FERNANDA 30/10</textarea>
                     }
                 }
 
-                // ---- PONTOS DE ATENÇÃO (SIMÉTRICO COM MAIOR CARGA) ----
+                // ---- PONTOS DE ATENÇÃO ----
                 const boxAtencao = document.getElementById("bi-ranking-atencao");
                 const badgeAtencao = document.getElementById("bi-badge-atencao");
                 if (badgeAtencao) badgeAtencao.textContent = `${membrosComOcorrencias.length} membro(s)`;
 
                 if (boxAtencao) {
                     boxAtencao.innerHTML = membrosComOcorrencias.length > 0
-                        ? membrosComOcorrencias.slice(0, 10).map(m => `
+                        ? membrosComOcorrencias.map(m => `
                             <div class="bi-rank-row" onclick="${acaoDetalhe(m)}">
                                 <div class="bi-carga-name-wrap">
                                     <span class="bi-carga-name">${escaparHTML(m.nome)}</span>
@@ -17922,16 +18026,16 @@ MARIA FERNANDA 30/10</textarea>
                         : `<div class="small text-muted text-center py-3">Sem faltas ou trocas efetivadas neste recorte.</div>`;
                 }
 
-                // ---- SUB-ABA 2: TABELA DE FREQUÊNCIA E ESCALAS ----
+                // ---- SUB-ABA 2: FREQUÊNCIA (SEM STATUS DE DISPONIBILIDADE) ----
                 const tbodyFreq = document.getElementById("tbody-overview-equilibrio");
                 const maxEscalas = Math.max(...membrosOrdenadosCarga.map(m => m.total), 1);
 
                 if (tbodyFreq) {
                     if (membrosOrdenadosCarga.length === 0) {
-                        tbodyFreq.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-muted">Nenhum membro encontrado para o filtro.</td></tr>`;
+                        tbodyFreq.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted">Nenhum membro encontrado para o filtro.</td></tr>`;
                     } else {
                         tbodyFreq.innerHTML = membrosOrdenadosCarga.map(m => {
-                            const percBarra = Math.round((m.total / maxEscalas) * 100);
+                            const percBarra = m.total > 0 ? Math.round((m.total / maxEscalas) * 100) : 0;
                             const pillPapel = m.papel.includes("Cerimoniário")
                                 ? `<span class="bi-pill bi-pill-wine">${escaparHTML(m.papel)}</span>`
                                 : `<span class="bi-pill bi-pill-neutral">${escaparHTML(m.papel)}</span>`;
@@ -17950,15 +18054,10 @@ MARIA FERNANDA 30/10</textarea>
                                     <td class="text-center fw-bold text-wine">${m.total}</td>
                                     <td class="text-center ${m.faltas > 0 ? 'fw-bold text-danger' : 'text-muted'}">${m.faltas}</td>
                                     <td class="text-center ${m.trocas > 0 ? 'fw-bold text-warning-emphasis' : 'text-muted'}">${m.trocas}</td>
-                                    <td style="min-width: 95px;">
+                                    <td style="min-width: 90px;">
                                         <div class="bi-carga-track">
                                             <div class="bi-carga-fill" style="width: ${percBarra}%;"></div>
                                         </div>
-                                    </td>
-                                    <td class="text-end">
-                                        ${m.respondeuDisp
-                                            ? '<span class="bi-pill bi-pill-ok">Enviado</span>'
-                                            : '<span class="bi-pill bi-pill-troca">Pendente</span>'}
                                     </td>
                                 </tr>
                             `;
@@ -17966,7 +18065,7 @@ MARIA FERNANDA 30/10</textarea>
                     }
                 }
 
-                // ---- SUB-ABA 3: OCORRÊNCIAS E TROCAS (SEM BOTÃO "VER HISTÓRICO") ----
+                // ---- SUB-ABA 3: OCORRÊNCIAS ----
                 const tbodyOcorr = document.getElementById("tbody-bi-ocorrencias");
                 if (tbodyOcorr) {
                     if (membrosComOcorrencias.length === 0) {
@@ -18010,7 +18109,7 @@ MARIA FERNANDA 30/10</textarea>
                 const body = modal.querySelector(".modal-body");
                 if (body) {
                     body.innerHTML = `
-                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 pb-2 border-bottom">
                             <div class="d-flex align-items-center gap-2">
                                 <label for="select-mes-historico-usuario" class="small fw-bold text-secondary mb-0">Período:</label>
                                 <select id="select-mes-historico-usuario" class="form-select form-select-sm w-auto fw-semibold text-wine"
@@ -18021,11 +18120,11 @@ MARIA FERNANDA 30/10</textarea>
 
                         <div id="hist-user-kpis" class="bi-member-kpi-grid"></div>
 
-                        <div class="mb-3">
-                            <div class="small fw-bold text-uppercase text-muted mb-2" style="font-size: 0.69rem; letter-spacing: 0.04em;">
+                        <div class="mb-2">
+                            <div class="small fw-bold text-uppercase text-muted mb-1" style="font-size: 0.67rem; letter-spacing: 0.04em;">
                                 Funções Servidas no Período
                             </div>
-                            <div id="hist-user-funcoes-chips" class="d-flex flex-wrap gap-2"></div>
+                            <div id="hist-user-funcoes-chips" class="d-flex flex-wrap gap-1"></div>
                         </div>
 
                         <div class="bi-modal-table-scroll">
@@ -18055,25 +18154,31 @@ MARIA FERNANDA 30/10</textarea>
                     nome: membro?.nome || ""
                 };
 
+                const trocasAprovadas = obterTrocasAprovadasConsolidadas(pessoas);
+                const idsEscalasTroca = new Set(trocasAprovadas.filter(t => t.escalaId).map(t => Number(t.escalaId)));
+
                 const mapaRegistros = new Map();
                 const filtrarPorMes = Boolean(mesAno && mesAno !== "TODOS");
 
                 (escalasDB || []).forEach(item => {
                     if (filtrarPorMes && extrairMesAno(item.data) !== mesAno) return;
 
-                    const stEfetivo = obterStatusEfetivoEscala(item);
+                    const stEfetivo = obterStatusAnaliticoEscala(item, idsEscalasTroca);
+                    const trocaVinculada = trocasAprovadas.find(t => t.escalaId && Number(t.escalaId) === Number(item.id));
+                    const subNomeEfetivo = trocaVinculada?.substitutoNome || item.substitutoNome || "";
+
                     const ehTitular = pessoaCorresponde(pessoa, item.coroinhaId, item.coroinhaNome);
                     const ehSubstituto = stEfetivo === "TROCA" &&
-                        item.substitutoNome &&
-                        pessoaCorresponde(pessoa, null, item.substitutoNome);
+                        subNomeEfetivo &&
+                        pessoaCorresponde(pessoa, null, subNomeEfetivo);
 
                     if (ehTitular || ehSubstituto) {
-                        const chaveUnica = item.id || `${item.data}_${item.turno}_${item.funcao}`;
+                        const chaveUnica = item.id ? `ESC_${item.id}` : `${item.data}_${item.turno}_${item.funcao}`;
                         let tipoPart = "Titular";
                         if (ehSubstituto && !ehTitular) {
                             tipoPart = `Cobriu ${item.coroinhaNome}`;
-                        } else if (ehTitular && stEfetivo === "TROCA" && item.substitutoNome) {
-                            tipoPart = `Substituído por ${item.substitutoNome}`;
+                        } else if (ehTitular && stEfetivo === "TROCA" && subNomeEfetivo) {
+                            tipoPart = `Substituído por ${subNomeEfetivo}`;
                         }
 
                         mapaRegistros.set(chaveUnica, {
@@ -18088,6 +18193,25 @@ MARIA FERNANDA 30/10</textarea>
                             detalhe: item.detalheStatus || ""
                         });
                     }
+                });
+
+                // Inclui trocas aprovadas não vinculadas diretamente a uma escala existente
+                trocasAprovadas.forEach(tr => {
+                    if (tr.vinculadaEmEscalaDB) return;
+                    if (filtrarPorMes && extrairMesAno(tr.data) !== mesAno) return;
+                    if (tr.solicitanteChave !== pessoa.chave) return;
+
+                    mapaRegistros.set(tr.chaveUnica, {
+                        data: tr.data,
+                        diaSemana: "",
+                        horario: "",
+                        turno: tr.turno || "-",
+                        celebracao: "Escala Litúrgica",
+                        funcao: tr.funcao || "-",
+                        tipoParticipacao: `Substituído por ${tr.substitutoNome}`,
+                        status: "TROCA",
+                        detalhe: tr.resumo
+                    });
                 });
 
                 const ordemTurno = { "Manhã": 1, "Tarde": 2, "Noite": 3 };
@@ -18153,7 +18277,7 @@ MARIA FERNANDA 30/10</textarea>
                 const total = registros.length;
                 const presencas = registros.filter(r => r.status === "CONFIRMADO" || r.tipoParticipacao.startsWith("Cobriu")).length;
                 const faltas = registros.filter(r => r.status === "PENDENTE").length;
-                const trocasEfetivadas = registros.filter(r => r.status === "TROCA").length;
+                const trocasEfetivadas = registros.filter(r => r.status === "TROCA" && !r.tipoParticipacao.startsWith("Cobriu")).length;
                 const assiduidade = total > 0 ? Math.round(((total - faltas) / total) * 100) : 100;
 
                 const badgeAssid = document.getElementById("bi-hist-assiduidade-badge");
@@ -18173,7 +18297,11 @@ MARIA FERNANDA 30/10</textarea>
                 }
 
                 const contagemFuncoes = {};
-                registros.forEach(r => { contagemFuncoes[r.funcao] = (contagemFuncoes[r.funcao] || 0) + 1; });
+                registros.forEach(r => {
+                    if (r.funcao && r.funcao !== "-") {
+                        contagemFuncoes[r.funcao] = (contagemFuncoes[r.funcao] || 0) + 1;
+                    }
+                });
 
                 const chipsEl = document.getElementById("hist-user-funcoes-chips");
                 if (chipsEl) {
@@ -18235,6 +18363,7 @@ MARIA FERNANDA 30/10</textarea>
                 }, 540);
             });
         })();
+
     </script>
 </body>
 </html>  
