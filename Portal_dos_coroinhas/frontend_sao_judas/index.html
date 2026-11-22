@@ -18366,10 +18366,16 @@ MARIA FERNANDA 30/10</textarea>
 
 // ============================================================================
         // REFATORAÇÃO UI/UX: ABA "FALTAS E TROCAS" (#admin-pane-faltas-trocas)
-        // Tabs Faltas/Trocas, dropdown padrão (só nomes) e modal individual isolado
+        // Cabeçalhos em destaque, agrupamento por usuário, horário exato e justificativa expansível
         // ============================================================================
         (function () {
             const STORAGE_FALTAS_DETALHADAS = "saojudas_faltas_detalhadas_db";
+
+            const HORARIOS_PADRAO_TURNO = {
+                "manha": "07:00",
+                "tarde": "17:00",
+                "noite": "19:00"
+            };
 
             const estadoFT = {
                 abaAtiva: "FALTAS",
@@ -18389,6 +18395,8 @@ MARIA FERNANDA 30/10</textarea>
             let listaUsuariosUnicosFT = [];
             let sugestoesDropdownFT = [];
             let indiceDropdownFT = -1;
+            let cacheJustificativasFT = new Map();
+            let seqJustificativaFT = 0;
 
             function normalizarFT(str) {
                 return String(str || "")
@@ -18406,6 +18414,28 @@ MARIA FERNANDA 30/10</textarea>
                     .replace(/>/g, "&gt;")
                     .replace(/"/g, "&quot;")
                     .replace(/'/g, "&#39;");
+            }
+
+            function formatarFuncaoLegivelFT(fn) {
+                const raw = String(fn || "").trim();
+                if (!raw || raw === "-") return "-";
+                const mapa = {
+                    "MESTRE": "Mestre",
+                    "CRUZ": "Cruz",
+                    "TOCHA": "Tocha",
+                    "AUXILIAR": "Auxiliar",
+                    "MISSAL": "Missal",
+                    "TURIBULO": "Turíbulo",
+                    "TURÍBULO": "Turíbulo",
+                    "NAVETA": "Naveta",
+                    "ALTAR": "Altar",
+                    "CERIMONIARIO": "Cerimoniário",
+                    "CERIMONIÁRIO": "Cerimoniário",
+                    "COROINHA": "Coroinha"
+                };
+                const upper = raw.toUpperCase();
+                if (mapa[upper]) return mapa[upper];
+                return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
             }
 
             function lerFaltasDetalhadasFT() {
@@ -18441,10 +18471,145 @@ MARIA FERNANDA 30/10</textarea>
                 return (meses[idx] && ano) ? `${meses[idx]}/${ano}` : mesAno;
             }
 
+            function normalizarHoraMissaFT(horaBruta) {
+                const raw = String(horaBruta || "").trim().toUpperCase().replace("H", "");
+                const match = raw.match(/(\d{1,2}):(\d{2})/);
+                if (!match) return "";
+                return `${match[1].padStart(2, "0")}:${match[2]}`;
+            }
+
+            function resolverHorarioExatoMissaFT(escalaId, dataISO, turno, horarioDireto) {
+                const direto = normalizarHoraMissaFT(horarioDireto);
+                if (direto) return direto;
+
+                if (escalaId && Array.isArray(escalasDB)) {
+                    const esc = escalasDB.find(e => Number(e.id) === Number(escalaId));
+                    const hEsc = normalizarHoraMissaFT(esc?.horario);
+                    if (hEsc) return hEsc;
+                }
+
+                if (dataISO && Array.isArray(escalasDB)) {
+                    const escData = escalasDB.find(e =>
+                        e.data === dataISO &&
+                        (!turno || normalizarFT(e.turno) === normalizarFT(turno)) &&
+                        e.horario
+                    );
+                    const hData = normalizarHoraMissaFT(escData?.horario);
+                    if (hData) return hData;
+                }
+
+                if (dataISO && Array.isArray(missasOutubro2026)) {
+                    const m = missasOutubro2026.find(x =>
+                        x.data === dataISO &&
+                        (!turno || normalizarFT(x.turno) === normalizarFT(turno)) &&
+                        x.horario
+                    );
+                    const hMissa = normalizarHoraMissaFT(m?.horario);
+                    if (hMissa) return hMissa;
+                }
+
+                const turnoNorm = normalizarFT(turno);
+                if (typeof HORARIOS_TURNO === "object" && HORARIOS_TURNO && turno && HORARIOS_TURNO[turno]) {
+                    return normalizarHoraMissaFT(HORARIOS_TURNO[turno]);
+                }
+                return HORARIOS_PADRAO_TURNO[turnoNorm] || "";
+            }
+
+            function formatarDataComHorarioExatoFT(dataISO, horarioExato) {
+                const dataFmt = formatarDataFT(dataISO);
+                if (dataFmt === "-") return "-";
+                return horarioExato ? `${dataFmt} - ${horarioExato}` : dataFmt;
+            }
+
+            function formatarDataHoraEventoFT(valor) {
+                if (valor === null || valor === undefined || valor === "") return "";
+
+                if (typeof valor === "number" && !isNaN(valor)) {
+                    const dt = new Date(valor);
+                    if (!isNaN(dt.getTime())) {
+                        const d = dt.toLocaleDateString("pt-BR");
+                        const h = dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                        return `${d} - ${h}`;
+                    }
+                    return "";
+                }
+
+                const s = String(valor).trim();
+                if (!s || normalizarFT(s) === "recente" || normalizarFT(s) === "agora mesmo") return "";
+
+                // Já formatado como DD/MM/AAAA HH:MM ou DD/MM/AAAA às HH:MM
+                const matchBR = s.match(/(\d{2}\/\d{2}\/\d{4})\D+(\d{2}:\d{2})/);
+                if (matchBR) return `${matchBR[1]} - ${matchBR[2]}`;
+
+                // ISO string
+                if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+                    const dt = new Date(s.includes("T") ? s : `${s}T00:00:00`);
+                    if (!isNaN(dt.getTime())) {
+                        const d = dt.toLocaleDateString("pt-BR");
+                        const temHora = s.includes("T") || /\d{2}:\d{2}/.test(s);
+                        if (temHora) {
+                            const h = dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                            return `${d} - ${h}`;
+                        }
+                        return d;
+                    }
+                }
+                return "";
+            }
+
             function obterIniciaisFT(nome) {
                 const partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
                 if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
                 return String(nome || "US").slice(0, 2).toUpperCase();
+            }
+
+            function ehUsuarioAdminFT(nomeOuId) {
+                const norm = normalizarFT(nomeOuId);
+                const m = (coroinhasDB || []).find(c =>
+                    (!isNaN(Number(nomeOuId)) && Number(c.id) === Number(nomeOuId)) ||
+                    normalizarFT(c.nome) === norm
+                );
+                if (!m) return false;
+                return Boolean(m.isAdmin || m.is_admin || String(m.papel || "").includes("Coordenação"));
+            }
+
+            function resolverFuncaoMembroNaEscalaFT({ escalaId, data, turno, membroId, membroNome, funcaoDireta }) {
+                if (funcaoDireta && String(funcaoDireta).trim() && String(funcaoDireta).trim() !== "-") {
+                    return formatarFuncaoLegivelFT(funcaoDireta);
+                }
+
+                const normNome = normalizarFT(membroNome);
+
+                if (escalaId && Array.isArray(escalasDB)) {
+                    const escId = escalasDB.find(e => Number(e.id) === Number(escalaId));
+                    if (escId?.funcao) return formatarFuncaoLegivelFT(escId.funcao);
+                }
+
+                if (data && Array.isArray(escalasDB)) {
+                    const escMatch = escalasDB.find(e =>
+                        e.data === data &&
+                        (!turno || normalizarFT(e.turno) === normalizarFT(turno)) &&
+                        (
+                            (membroId && Number(e.coroinhaId) === Number(membroId)) ||
+                            (normNome && normalizarFT(e.coroinhaNome) === normNome) ||
+                            (normNome && normalizarFT(e.substitutoNome) === normNome)
+                        )
+                    );
+                    if (escMatch?.funcao) return formatarFuncaoLegivelFT(escMatch.funcao);
+                }
+
+                // Fallback para papel do membro no cadastro
+                const membro = (coroinhasDB || []).find(c =>
+                    (membroId && Number(c.id) === Number(membroId)) ||
+                    (normNome && normalizarFT(c.nome) === normNome)
+                );
+                if (membro?.papel) {
+                    if (String(membro.papel).includes("Cerimoniário")) return "Cerimoniário";
+                    if (String(membro.papel).includes("Coroinha")) return "Coroinha";
+                    return membro.papel;
+                }
+
+                return "-";
             }
 
             function coletarTodosUsuariosFT() {
@@ -18484,26 +18649,64 @@ MARIA FERNANDA 30/10</textarea>
                 return Array.from(mapa.values()).sort((a, b) => a.nome.localeCompare(b.nome));
             }
 
-            function renderizarNomeClicavelFT(nome, idOpcional) {
+            function renderizarNomeClicavelFT(nome, idOpcional, variante = "solicitante", totalGrupo = 1) {
                 const texto = String(nome || "").trim();
                 const chave = normalizarFT(texto);
                 if (!chave || chave === "-" || chave === "undefined" || chave === "consertar") {
                     return `<span class="text-muted">-</span>`;
                 }
+
                 const nomeSafe = escaparFT(texto).replace(/'/g, "\\'");
                 const idArg = (idOpcional && !isNaN(Number(idOpcional))) ? Number(idOpcional) : "null";
+                const classeVar = variante === "substituto" ? "ft-member-btn is-substituto" : "ft-member-btn is-solicitante";
+                const badgeQtd = totalGrupo > 1
+                    ? `<span class="ft-count-badge" title="${totalGrupo} solicitações — clique no nome para ver todas">${totalGrupo}</span>`
+                    : "";
+
+                return `
+                    <span class="ft-member-inline">
+                        <button type="button"
+                                class="${classeVar}"
+                                onclick="window.abrirDetalheFaltasTrocasUsuario('${nomeSafe}', ${idArg})"
+                                title="Ver todas as solicitações de ${escaparFT(texto)}">
+                            ${escaparFT(texto)}
+                        </button>
+                        ${badgeQtd}
+                    </span>
+                `;
+            }
+
+            function registrarJustificativaExpansivelFT(textoCompleto, contexto) {
+                const limpo = String(textoCompleto || "").trim();
+                if (!limpo || limpo === "-") {
+                    return `<span class="text-muted">-</span>`;
+                }
+
+                if (limpo.length <= 42) {
+                    return `<span class="ft-obs-short">${escaparFT(limpo)}</span>`;
+                }
+
+                const key = `just_${++seqJustificativaFT}`;
+                cacheJustificativasFT.set(key, {
+                    texto: limpo,
+                    titulo: contexto?.titulo || "Justificativa",
+                    subtitulo: contexto?.subtitulo || ""
+                });
+
+                const resumo = `${limpo.slice(0, 40).trim()}...`;
                 return `
                     <button type="button"
-                            class="ft-member-btn"
-                            onclick="window.abrirDetalheFaltasTrocasUsuario('${nomeSafe}', ${idArg})"
-                            title="Ver faltas e trocas de ${escaparFT(texto)}">
-                        ${escaparFT(texto)}
+                            class="ft-just-trigger"
+                            onclick="window.abrirJustificativaCompletaFT('${key}')"
+                            title="Clique para ler a justificativa completa">
+                        <span class="ft-just-preview">${escaparFT(resumo)}</span>
+                        <span class="ft-just-more">ver</span>
                     </button>
                 `;
             }
 
             // ------------------------------------------------------------------------
-            // 1. ESTILOS PADRONIZADOS (PALETA DO SISTEMA + MODAL ISOLADO + MOBILE)
+            // 1. ESTILOS (CABEÇALHOS EM DESTAQUE, CORES SOLICITANTE/SUBSTITUTO, MOBILE)
             // ------------------------------------------------------------------------
             function injetarEstilosFaltasTrocas() {
                 document.getElementById("estilos-faltas-trocas-refatorado")?.remove();
@@ -18520,7 +18723,6 @@ MARIA FERNANDA 30/10</textarea>
                         overflow: visible;
                     }
 
-                    /* Cabeçalho enxuto */
                     #admin-pane-faltas-trocas .ft-topbar {
                         padding: 0.65rem 0.95rem;
                         background: var(--surface-white);
@@ -18638,7 +18840,6 @@ MARIA FERNANDA 30/10</textarea>
                         color: var(--liturgical-wine);
                     }
 
-                    /* Lista suspensa padrão (somente nomes) */
                     #ft-autocomplete-dropdown {
                         position: absolute;
                         top: calc(100% + 4px);
@@ -18697,7 +18898,7 @@ MARIA FERNANDA 30/10</textarea>
                         white-space: nowrap;
                     }
 
-                    /* Sub-abas de alternância (Faltas / Trocas e Substituições) */
+                    /* Tabs de alternância */
                     #admin-pane-faltas-trocas .ft-subtabs {
                         display: flex;
                         flex-wrap: nowrap;
@@ -18809,7 +19010,7 @@ MARIA FERNANDA 30/10</textarea>
                         color: var(--text-muted);
                     }
 
-                    /* Painel de tabela exibido por aba */
+                    /* Bloco da tabela */
                     #admin-pane-faltas-trocas .ft-section-card {
                         background: var(--surface-white);
                         border: 1px solid var(--border-warm);
@@ -18856,7 +19057,7 @@ MARIA FERNANDA 30/10</textarea>
                         color: var(--text-muted);
                     }
 
-                    /* Contêineres com rolagem vertical e horizontal controlada */
+                    /* Rolagem vertical e horizontal controlada */
                     #admin-pane-faltas-trocas .ft-table-scroll,
                     #modalDetalheFaltasTrocasUsuario .ft-modal-table-scroll {
                         width: 100%;
@@ -18892,13 +19093,18 @@ MARIA FERNANDA 30/10</textarea>
                         border-radius: 999px;
                     }
 
+                    /* Tabelas com cabeçalho em destaque (paleta litúrgica) */
                     #admin-pane-faltas-trocas .ft-table,
                     #modalDetalheFaltasTrocasUsuario .ft-modal-table {
                         width: 100% !important;
-                        min-width: 680px !important;
+                        min-width: 720px !important;
                         border-collapse: separate !important;
                         border-spacing: 0 !important;
                         margin: 0 !important;
+                    }
+
+                    #tabela-ft-trocas {
+                        min-width: 840px !important;
                     }
 
                     #admin-pane-faltas-trocas .ft-table thead,
@@ -18911,15 +19117,21 @@ MARIA FERNANDA 30/10</textarea>
                         position: sticky;
                         top: 0;
                         z-index: 3;
-                        background: var(--bg-cream) !important;
-                        color: var(--text-dark) !important;
-                        font-size: 0.67rem !important;
+                        background: var(--liturgical-wine) !important;
+                        color: var(--surface-white) !important;
+                        font-size: 0.7rem !important;
                         font-weight: 700 !important;
                         text-transform: uppercase;
-                        letter-spacing: 0.04em;
-                        padding: 0.52rem 0.65rem !important;
-                        border-bottom: 1.5px solid var(--border-warm) !important;
+                        letter-spacing: 0.05em;
+                        padding: 0.62rem 0.72rem !important;
+                        border-bottom: 2.5px solid var(--liturgical-gold) !important;
+                        border-right: 1px solid rgba(255, 255, 255, 0.12);
                         white-space: nowrap;
+                    }
+
+                    #admin-pane-faltas-trocas .ft-table thead th:last-child,
+                    #modalDetalheFaltasTrocasUsuario .ft-modal-table thead th:last-child {
+                        border-right: none;
                     }
 
                     #admin-pane-faltas-trocas .ft-table tbody tr,
@@ -18942,9 +19154,9 @@ MARIA FERNANDA 30/10</textarea>
                         display: table-cell !important;
                         width: auto !important;
                         vertical-align: middle !important;
-                        padding: 0.48rem 0.65rem !important;
-                        border-bottom: 1px solid #F0E8DE !important;
-                        font-size: 0.79rem !important;
+                        padding: 0.52rem 0.72rem !important;
+                        border-bottom: 1px solid #EFE7DC !important;
+                        font-size: 0.8rem !important;
                         color: var(--text-dark);
                         background: var(--surface-white);
                     }
@@ -18955,35 +19167,44 @@ MARIA FERNANDA 30/10</textarea>
                         content: none !important;
                     }
 
-                    /* Primeira coluna fixa durante rolagem horizontal */
+                    /* Coluna 1 fixa à esquerda durante rolagem horizontal */
                     #admin-pane-faltas-trocas .ft-table th:first-child,
                     #admin-pane-faltas-trocas .ft-table td:first-child {
                         position: sticky;
                         left: 0;
                         z-index: 2;
-                        min-width: 150px;
-                        max-width: 190px;
-                        box-shadow: 2px 0 6px rgba(43, 33, 34, 0.05);
+                        min-width: 168px;
+                        max-width: 215px;
+                        box-shadow: 2px 0 6px rgba(43, 33, 34, 0.06);
                     }
 
-                    #admin-pane-faltas-trocas .ft-table thead th:first-child { z-index: 4; }
-
-                    .ft-col-obs {
-                        max-width: 240px;
-                        color: var(--text-muted) !important;
-                        font-size: 0.76rem !important;
+                    #admin-pane-faltas-trocas .ft-table thead th:first-child {
+                        z-index: 4;
                     }
 
-                    /* Botão de nome clicável com feedback visual claro */
+                    /* Diferenciação visual clara entre Solicitante e Substituto */
+                    .ft-person-cell {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 0.16rem;
+                    }
+
+                    .ft-member-inline {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.35rem;
+                        max-width: 100%;
+                    }
+
                     .ft-member-btn {
                         border: none;
                         background: transparent;
-                        padding: 0.16rem 0.4rem;
-                        margin: -0.16rem -0.4rem;
+                        padding: 0.14rem 0.38rem;
+                        margin: -0.14rem -0.38rem;
                         border-radius: 6px;
-                        color: var(--liturgical-wine);
                         font-weight: 700;
-                        font-size: 0.8rem;
+                        font-size: 0.81rem;
                         text-align: left;
                         cursor: pointer;
                         text-decoration: none;
@@ -18992,9 +19213,25 @@ MARIA FERNANDA 30/10</textarea>
                         transition: background-color 0.15s ease, color 0.15s ease;
                     }
 
-                    .ft-member-btn:hover {
+                    /* Solicitante / Usuário em Vinho Litúrgico */
+                    .ft-member-btn.is-solicitante {
+                        color: var(--liturgical-wine);
+                    }
+
+                    .ft-member-btn.is-solicitante:hover {
                         background: var(--liturgical-wine-soft);
                         color: var(--liturgical-wine-dark);
+                        text-decoration: underline;
+                    }
+
+                    /* Substituto em Verde Confirmado da Paleta */
+                    .ft-member-btn.is-substituto {
+                        color: var(--status-confirmed-text);
+                    }
+
+                    .ft-member-btn.is-substituto:hover {
+                        background: var(--status-confirmed-bg);
+                        color: #134617;
                         text-decoration: underline;
                     }
 
@@ -19003,11 +19240,120 @@ MARIA FERNANDA 30/10</textarea>
                         outline-offset: 2px;
                     }
 
-                    /* Badges padronizados na paleta do sistema */
+                    /* Badge numérico de solicitações agrupadas */
+                    .ft-count-badge {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        min-width: 20px;
+                        height: 20px;
+                        padding: 0 0.38rem;
+                        border-radius: 50rem;
+                        background: var(--liturgical-gold);
+                        color: var(--text-dark);
+                        font-size: 0.68rem;
+                        font-weight: 800;
+                        line-height: 1;
+                        flex-shrink: 0;
+                    }
+
+                    /* Tag de função abaixo do nome (Solicitante / Substituto) */
+                    .ft-funcao-tag {
+                        display: inline-flex;
+                        align-items: center;
+                        padding: 0.08rem 0.42rem;
+                        border-radius: 5px;
+                        font-size: 0.66rem;
+                        font-weight: 700;
+                        letter-spacing: 0.01em;
+                        background: var(--bg-cream);
+                        color: var(--text-muted);
+                        border: 1px solid var(--border-warm);
+                        white-space: nowrap;
+                    }
+
+                    .ft-funcao-tag.is-sub-fn {
+                        background: #F1F8F2;
+                        color: var(--status-confirmed-text);
+                        border-color: #C8E6C9;
+                    }
+
+                    /* Aprovação / Recusa com data e hora */
+                    .ft-decisao-cell {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 0.1rem;
+                        line-height: 1.25;
+                    }
+
+                    .ft-decisao-autor {
+                        font-weight: 700;
+                        font-size: 0.78rem;
+                        color: var(--text-dark);
+                    }
+
+                    .ft-decisao-autor.is-recusa {
+                        color: var(--status-pending-text);
+                    }
+
+                    .ft-decisao-autor.is-aprovacao {
+                        color: var(--status-confirmed-text);
+                    }
+
+                    .ft-decisao-datahora {
+                        font-size: 0.69rem;
+                        color: var(--text-muted);
+                        white-space: nowrap;
+                    }
+
+                    /* Justificativa resumida e expansível */
+                    .ft-obs-short {
+                        font-size: 0.77rem;
+                        color: var(--text-muted);
+                    }
+
+                    .ft-just-trigger {
+                        border: 1px solid transparent;
+                        background: transparent;
+                        padding: 0.2rem 0.4rem;
+                        margin: -0.2rem -0.4rem;
+                        border-radius: 6px;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.35rem;
+                        max-width: 225px;
+                        text-align: left;
+                        cursor: pointer;
+                        color: var(--text-muted);
+                        font-size: 0.77rem;
+                        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+                    }
+
+                    .ft-just-trigger:hover {
+                        background: var(--bg-cream);
+                        border-color: var(--border-warm);
+                        color: var(--text-dark);
+                    }
+
+                    .ft-just-preview {
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                    }
+
+                    .ft-just-more {
+                        font-size: 0.66rem;
+                        font-weight: 700;
+                        color: var(--liturgical-wine);
+                        text-transform: uppercase;
+                        flex-shrink: 0;
+                    }
+
+                    /* Badges de status */
                     .ft-pill {
                         display: inline-flex;
                         align-items: center;
-                        padding: 0.16rem 0.5rem;
+                        padding: 0.17rem 0.52rem;
                         border-radius: 6px;
                         font-size: 0.69rem;
                         font-weight: 700;
@@ -19017,7 +19363,6 @@ MARIA FERNANDA 30/10</textarea>
                     .ft-pill-pendente { background: var(--status-swap-bg);      color: var(--status-swap-text); }
                     .ft-pill-recusada { background: var(--status-pending-bg);   color: var(--status-pending-text); }
                     .ft-pill-neutral  { background: var(--bg-cream); color: var(--text-dark); border: 1px solid var(--border-warm); }
-                    .ft-pill-wine     { background: var(--liturgical-wine); color: var(--surface-white); }
 
                     .ft-empty-row {
                         text-align: center;
@@ -19026,7 +19371,7 @@ MARIA FERNANDA 30/10</textarea>
                         font-size: 0.79rem !important;
                     }
 
-                    /* Estilos exclusivos do Modal Individual Isolado (#modalDetalheFaltasTrocasUsuario) */
+                    /* Modal Individual Isolado (#modalDetalheFaltasTrocasUsuario) */
                     #modalDetalheFaltasTrocasUsuario .ft-modal-toolbar {
                         display: flex;
                         flex-wrap: wrap;
@@ -19090,6 +19435,24 @@ MARIA FERNANDA 30/10</textarea>
                         background: var(--liturgical-wine);
                         border-color: var(--liturgical-wine);
                         color: var(--surface-white);
+                    }
+
+                    /* Modal de Justificativa Completa (sobreposto limpo) */
+                    #modalJustificativaFT {
+                        z-index: 1068;
+                    }
+
+                    #modalJustificativaFT .ft-just-box-completa {
+                        background: var(--bg-cream);
+                        border: 1px solid var(--border-warm);
+                        border-left: 4px solid var(--liturgical-wine);
+                        border-radius: 10px;
+                        padding: 0.9rem 1rem;
+                        font-size: 0.88rem;
+                        line-height: 1.55;
+                        color: var(--text-dark);
+                        white-space: pre-wrap;
+                        word-break: break-word;
                     }
 
                     /* Responsividade Mobile (< 768px) */
@@ -19174,8 +19537,8 @@ MARIA FERNANDA 30/10</textarea>
 
                         #admin-pane-faltas-trocas .ft-table th:first-child,
                         #admin-pane-faltas-trocas .ft-table td:first-child {
-                            min-width: 132px;
-                            max-width: 148px;
+                            min-width: 145px;
+                            max-width: 165px;
                         }
                     }
                 `;
@@ -19183,13 +19546,13 @@ MARIA FERNANDA 30/10</textarea>
             }
 
             // ------------------------------------------------------------------------
-            // 2. ESTRUTURA BASE DA ABA "FALTAS E TROCAS" (SOMENTE LEITURA)
+            // 2. ESTRUTURA BASE DA ABA "FALTAS E TROCAS"
             // ------------------------------------------------------------------------
             function construirEstruturaFaltasTrocas() {
                 const pane = document.getElementById("admin-pane-faltas-trocas");
-                if (!pane || pane.dataset.ftRefatoradoV2 === "true") return;
+                if (!pane || pane.dataset.ftRefatoradoV3 === "true") return;
 
-                pane.dataset.ftRefatoradoV2 = "true";
+                pane.dataset.ftRefatoradoV3 = "true";
                 pane.innerHTML = `
                     <div class="ft-shell mb-3">
                         <div class="ft-topbar">
@@ -19209,7 +19572,6 @@ MARIA FERNANDA 30/10</textarea>
                             </div>
                         </div>
 
-                        <!-- Filtros com Dropdown Padrão (somente nomes) -->
                         <div class="ft-filter-bar">
                             <div class="ft-filter-group">
                                 <label for="ft-filtro-busca">Usuário</label>
@@ -19247,7 +19609,6 @@ MARIA FERNANDA 30/10</textarea>
                             </button>
                         </div>
 
-                        <!-- Botões de alternância (Tabs): exibe um bloco por vez -->
                         <div class="ft-subtabs" role="tablist" aria-label="Alternar entre Faltas e Trocas">
                             <button type="button" id="ft-tab-btn-faltas" class="ft-subtab-btn active"
                                     role="tab" aria-selected="true" aria-controls="ft-bloco-faltas"
@@ -19264,10 +19625,9 @@ MARIA FERNANDA 30/10</textarea>
                         </div>
 
                         <div class="ft-body">
-                            <!-- KPIs compactos com títulos curtos -->
                             <div class="ft-kpi-grid" id="ft-kpis-resumo"></div>
 
-                            <!-- Bloco 1: Faltas -->
+                            <!-- Bloco 1: Faltas (sem nome da liturgia, agrupado por usuário) -->
                             <div class="ft-section-card" id="ft-bloco-faltas" role="tabpanel" aria-labelledby="ft-tab-btn-faltas">
                                 <div class="ft-section-head">
                                     <h6 class="ft-section-title">Faltas</h6>
@@ -19279,8 +19639,8 @@ MARIA FERNANDA 30/10</textarea>
                                         <thead>
                                             <tr>
                                                 <th>Usuário</th>
-                                                <th>Data / Turno</th>
-                                                <th>Celebração / Função</th>
+                                                <th>Data / Horário</th>
+                                                <th>Função</th>
                                                 <th>Status</th>
                                                 <th>Substituto / Detalhe</th>
                                             </tr>
@@ -19290,7 +19650,7 @@ MARIA FERNANDA 30/10</textarea>
                                 </div>
                             </div>
 
-                            <!-- Bloco 2: Trocas e Substituições -->
+                            <!-- Bloco 2: Trocas e Substituições (agrupado por solicitante) -->
                             <div class="ft-section-card d-none" id="ft-bloco-trocas" role="tabpanel" aria-labelledby="ft-tab-btn-trocas">
                                 <div class="ft-section-head">
                                     <h6 class="ft-section-title">Trocas e Substituições</h6>
@@ -19304,7 +19664,7 @@ MARIA FERNANDA 30/10</textarea>
                                                 <th>Solicitante</th>
                                                 <th>Substituto</th>
                                                 <th>Tipo</th>
-                                                <th>Data / Turno</th>
+                                                <th>Data / Horário</th>
                                                 <th>Status</th>
                                                 <th>Aprovado por</th>
                                                 <th>Justificativa</th>
@@ -19338,7 +19698,7 @@ MARIA FERNANDA 30/10</textarea>
             }
 
             // ------------------------------------------------------------------------
-            // 3. DROPDOWN PADRÃO NA BARRA DE PESQUISA (EXCLUSIVAMENTE NOMES)
+            // 3. DROPDOWN PADRÃO NA BUSCA (SOMENTE NOMES)
             // ------------------------------------------------------------------------
             function fecharDropdownBuscaFT() {
                 const dd = document.getElementById("ft-autocomplete-dropdown");
@@ -19474,15 +19834,18 @@ MARIA FERNANDA 30/10</textarea>
             });
 
             // ------------------------------------------------------------------------
-            // 4. COLETA E NORMALIZAÇÃO DE FALTAS E TROCAS (SEM TERMO "COBERTA")
+            // 4. COLETA, REGRAS DE DECISÃO (APROVAÇÃO/RECUSA) E AGRUPAMENTO
             // ------------------------------------------------------------------------
-            function buscarAprovadorChamadaFT(dataMissa, turnoMissa) {
+            function buscarInfoChamadaFT(dataMissa, turnoMissa) {
                 const rel = (relatoriosPresencaDB || []).find(r =>
                     (r.dataMissa || r.data_missa) === dataMissa &&
-                    (!turnoMissa || (r.turnoMissa || r.turno_missa) === turnoMissa) &&
-                    (r.validadoPor || r.validado_por)
+                    (!turnoMissa || (r.turnoMissa || r.turno_missa) === turnoMissa)
                 );
-                return rel?.validadoPor || rel?.validado_por || "";
+                if (!rel) return { aprovador: "", dataHora: "" };
+                return {
+                    aprovador: rel.validadoPor || rel.validado_por || rel.cerimoniarioNome || "",
+                    dataHora: formatarDataHoraEventoFT(rel.validadoEm || rel.validado_em || rel.enviadoEm)
+                };
             }
 
             function coletarRegistrosDeFaltasFT() {
@@ -19494,24 +19857,34 @@ MARIA FERNANDA 30/10</textarea>
                     const chave = fc.idEscala
                         ? `ESC_${fc.idEscala}`
                         : `CH_${fc.data}_${fc.turno}_${normalizarFT(fc.coroinhaNome)}`;
-                    const aprovador = fc.validadoPor || fc.validado_por || buscarAprovadorChamadaFT(fc.data, fc.turno) || fc.cerimoniarioNome || "Coordenação";
+                    const infoChamada = buscarInfoChamadaFT(fc.data, fc.turno);
+                    const horarioExato = resolverHorarioExatoMissaFT(fc.idEscala, fc.data, fc.turno, fc.horario);
+                    const funcao = resolverFuncaoMembroNaEscalaFT({
+                        escalaId: fc.idEscala,
+                        data: fc.data,
+                        turno: fc.turno,
+                        membroId: fc.coroinhaId,
+                        membroNome: fc.coroinhaNome,
+                        funcaoDireta: fc.funcao
+                    });
 
                     mapa.set(chave, {
                         categoria: "FALTA",
+                        membroChave: normalizarFT(fc.coroinhaNome),
                         membroNome: fc.coroinhaNome,
                         membroId: fc.coroinhaId || null,
-                        substitutoNome: "-",
+                        substitutoNome: "",
                         substitutoId: null,
                         data: fc.data || "",
-                        turno: fc.turno || "",
-                        horario: fc.horario || "",
-                        celebracao: fc.celebracao || "Santa Missa",
-                        funcao: fc.funcao || "-",
+                        horarioExato,
+                        funcao,
                         statusGrupo: "APROVADA",
                         statusLabel: "Aprovada",
                         pillClass: "ft-pill-aprovada",
-                        aprovadoPor: aprovador,
-                        detalhe: fc.observacao || `Chamada validada (${fc.cerimoniarioNome || "Coordenação"})`
+                        decisaoAutor: fc.validadoPor || fc.validado_por || infoChamada.aprovador || "Coordenação",
+                        decisaoDataHora: formatarDataHoraEventoFT(fc.validadoEm || fc.validado_em) || infoChamada.dataHora,
+                        decisaoTipo: "APROVACAO",
+                        justificativa: fc.observacao || ""
                     });
                 });
 
@@ -19523,25 +19896,34 @@ MARIA FERNANDA 30/10</textarea>
                         : `LOC_${reg.data}_${reg.turno}_${normalizarFT(reg.faltosoNome)}`;
                     if (mapa.has(chave)) return;
 
-                    const foiAssumida = reg.statusFalta === "ASSUMIDA" && reg.assumidoPorNome;
+                    const foiAssumida = reg.statusFalta === "ASSUMIDA" && Boolean(reg.assumidoPorNome);
+                    const horarioExato = resolverHorarioExatoMissaFT(reg.escalaId, reg.data, reg.turno, reg.horario);
+                    const funcao = resolverFuncaoMembroNaEscalaFT({
+                        escalaId: reg.escalaId,
+                        data: reg.data,
+                        turno: reg.turno,
+                        membroId: reg.faltosoId,
+                        membroNome: reg.faltosoNome,
+                        funcaoDireta: reg.funcao
+                    });
+
                     mapa.set(chave, {
                         categoria: "FALTA",
+                        membroChave: normalizarFT(reg.faltosoNome),
                         membroNome: reg.faltosoNome,
                         membroId: reg.faltosoId || null,
-                        substitutoNome: foiAssumida ? reg.assumidoPorNome : "-",
+                        substitutoNome: foiAssumida ? reg.assumidoPorNome : "",
                         substitutoId: foiAssumida ? (reg.assumidoPorId || null) : null,
                         data: reg.data || "",
-                        turno: reg.turno || "",
-                        horario: reg.horario || "",
-                        celebracao: reg.celebracao || "Santa Missa",
-                        funcao: reg.funcao || "-",
+                        horarioExato,
+                        funcao,
                         statusGrupo: foiAssumida ? "APROVADA" : "PENDENTE",
                         statusLabel: foiAssumida ? "Aprovada" : "Pendente",
                         pillClass: foiAssumida ? "ft-pill-aprovada" : "ft-pill-pendente",
-                        aprovadoPor: foiAssumida ? (reg.aprovadoPor || reg.avaliadoPor || reg.assumidoPorNome) : "-",
-                        detalhe: foiAssumida
-                            ? `Substituído por ${reg.assumidoPorNome}`
-                            : (reg.justificativa || "Aguardando substituto")
+                        decisaoAutor: foiAssumida ? (reg.aprovadoPor || reg.avaliadoPor || reg.assumidoPorNome) : "",
+                        decisaoDataHora: formatarDataHoraEventoFT(reg.assumidoEm || reg.atualizadoEm || reg.aprovadoEm),
+                        decisaoTipo: foiAssumida ? "APROVACAO" : "PENDENTE",
+                        justificativa: reg.justificativa || ""
                     });
                 });
 
@@ -19553,38 +19935,165 @@ MARIA FERNANDA 30/10</textarea>
                         : `ESC_${f.data}_${f.turno}_${normalizarFT(f.coroinhaNome)}`;
                     if (mapa.has(chave)) return;
 
+                    const horarioExato = resolverHorarioExatoMissaFT(f.id, f.data, f.turno, f.horario);
+                    const funcao = resolverFuncaoMembroNaEscalaFT({
+                        escalaId: f.id,
+                        data: f.data,
+                        turno: f.turno,
+                        membroId: f.coroinhaId,
+                        membroNome: f.coroinhaNome,
+                        funcaoDireta: f.funcao
+                    });
+
                     mapa.set(chave, {
                         categoria: "FALTA",
+                        membroChave: normalizarFT(f.coroinhaNome),
                         membroNome: f.coroinhaNome,
                         membroId: f.coroinhaId || null,
-                        substitutoNome: "-",
+                        substitutoNome: "",
                         substitutoId: null,
                         data: f.data || "",
-                        turno: f.turno || "",
-                        horario: f.horario || "",
-                        celebracao: f.celebracao || "Santa Missa",
-                        funcao: f.funcao || "-",
+                        horarioExato,
+                        funcao,
                         statusGrupo: "PENDENTE",
                         statusLabel: "Pendente",
                         pillClass: "ft-pill-pendente",
-                        aprovadoPor: "-",
-                        detalhe: f.justificativaFalta || f.detalheStatus || "Aguardando substituto"
+                        decisaoAutor: "",
+                        decisaoDataHora: "",
+                        decisaoTipo: "PENDENTE",
+                        justificativa: f.justificativaFalta || f.detalheStatus || ""
                     });
                 });
 
-                return Array.from(mapa.values()).sort((a, b) => String(b.data).localeCompare(String(a.data)));
+                return Array.from(mapa.values()).sort((a, b) => {
+                    if (a.data !== b.data) return String(b.data).localeCompare(String(a.data));
+                    return String(b.horarioExato).localeCompare(String(a.horarioExato));
+                });
             }
 
             function normalizarStatusTrocaFT(rawStatus) {
                 const st = String(rawStatus || "").trim().toUpperCase();
                 if (["APROVADO", "APROVADA", "EFETIVADO", "EFETIVADA", "CONCLUIDO", "CONCLUIDA"].includes(st)) {
-                    return { grupo: "APROVADA", label: "Aprovada", pillClass: "ft-pill-aprovada" };
+                    return { grupo: "APROVADA", label: "Aprovada", pillClass: "ft-pill-aprovada", raw: st };
                 }
                 if (["REPROVADO", "REPROVADA", "RECUSADO", "RECUSADA", "CANCELADO", "CANCELADA", "CANCELADO_POR_ACEITE"].includes(st)) {
                     const label = st.includes("CANCELAD") ? "Cancelada" : "Recusada";
-                    return { grupo: "RECUSADA", label, pillClass: "ft-pill-recusada" };
+                    return { grupo: "RECUSADA", label, pillClass: "ft-pill-recusada", raw: st };
                 }
-                return { grupo: "PENDENTE", label: "Pendente", pillClass: "ft-pill-pendente" };
+                return { grupo: "PENDENTE", label: "Pendente", pillClass: "ft-pill-pendente", raw: st };
+            }
+
+            /**
+             * Aplica as 3 regras exatas de exibição de aprovação/recusa:
+             * 1) Recusada pela 2ª pessoa (substituto) -> Nome do substituto + data/hora da recusa.
+             * 2) Aprovada pela 2ª pessoa e recusada pelo admin -> Somente nome do admin + data/hora da recusa.
+             * 3) Aprovada pela 2ª pessoa e aprovada pelo admin -> Somente nome do admin + data/hora da aprovação.
+             */
+            function resolverDecisaoTrocaFT(h, stInfo, substitutoNome) {
+                const subNorm = normalizarFT(substitutoNome);
+                const adminExplicito = (
+                    h.adminAvaliador || h.admin_avaliador ||
+                    h.adminAprovador || h.admin_aprovador ||
+                    h.adminRecusador || h.admin_recusador ||
+                    h.aprovadoPorAdmin || h.aprovado_por_admin ||
+                    h.recusadoPorAdmin || h.recusado_por_admin ||
+                    ""
+                ).trim();
+
+                const avaliadorGenerico = (
+                    h.avaliadoPor || h.avaliado_por ||
+                    h.aprovadoPor || h.aprovado_por ||
+                    h.recusadoPor || h.recusado_por ||
+                    ""
+                ).trim();
+
+                const dataHoraRecusa = formatarDataHoraEventoFT(
+                    h.recusadoEm || h.recusado_em ||
+                    h.dataHoraRecusa || h.data_hora_recusa ||
+                    h.avaliadoEm || h.avaliado_em ||
+                    h.dataHoraDecisao || h.data_hora_decisao ||
+                    h.atualizadoEm || h.atualizado_em ||
+                    h.updated_at || h.criadoEm || h.criadoTimestamp
+                );
+
+                const dataHoraAprovacao = formatarDataHoraEventoFT(
+                    h.aprovadoEm || h.aprovado_em ||
+                    h.dataHoraAprovacao || h.data_hora_aprovacao ||
+                    h.avaliadoEm || h.avaliado_em ||
+                    h.dataHoraDecisao || h.data_hora_decisao ||
+                    h.atualizadoEm || h.atualizado_em ||
+                    h.updated_at || h.criadoEm || h.criadoTimestamp
+                );
+
+                if (stInfo.grupo === "APROVADA") {
+                    let nomeAdmin = adminExplicito;
+                    if (!nomeAdmin && avaliadorGenerico && normalizarFT(avaliadorGenerico) !== subNorm) {
+                        nomeAdmin = avaliadorGenerico;
+                    } else if (!nomeAdmin && avaliadorGenerico && ehUsuarioAdminFT(avaliadorGenerico)) {
+                        nomeAdmin = avaliadorGenerico;
+                    }
+                    return {
+                        autor: nomeAdmin || "Coordenação",
+                        dataHora: dataHoraAprovacao,
+                        tipo: "APROVACAO"
+                    };
+                }
+
+                if (stInfo.grupo === "RECUSADA") {
+                    const colegaAprovouAntes = Boolean(
+                        h.aprovadoPeloColega || h.aprovado_pelo_colega ||
+                        h.aceitoPeloColega || h.aceito_pelo_colega ||
+                        ["APROVADO", "APROVADA", "ACEITO", "ACEITA"].includes(String(h.statusColega || h.status_colega || "").toUpperCase())
+                    );
+
+                    const avaliadorEhAdmin = Boolean(
+                        adminExplicito ||
+                        (avaliadorGenerico && normalizarFT(avaliadorGenerico) !== subNorm && ehUsuarioAdminFT(avaliadorGenerico)) ||
+                        String(h.origemRecusa || h.origem_recusa || "").toUpperCase() === "ADMIN"
+                    );
+
+                    // Regra 2: Aprovada pela 2ª pessoa, mas recusada pelo admin -> somente nome do admin + data/hora
+                    if (colegaAprovouAntes || avaliadorEhAdmin) {
+                        const nomeAdminRecusa = adminExplicito || (avaliadorGenerico && normalizarFT(avaliadorGenerico) !== subNorm ? avaliadorGenerico : "Coordenação");
+                        return {
+                            autor: nomeAdminRecusa,
+                            dataHora: dataHoraRecusa,
+                            tipo: "RECUSA"
+                        };
+                    }
+
+                    // Regra 1: Recusada pela 2ª pessoa envolvida (substituto) -> nome do substituto + data/hora
+                    const nomeSegundaPessoa = (avaliadorGenerico && normalizarFT(avaliadorGenerico) === subNorm)
+                        ? avaliadorGenerico
+                        : (substitutoNome && substitutoNome !== "-" ? substitutoNome : (avaliadorGenerico || "-"));
+
+                    return {
+                        autor: nomeSegundaPessoa,
+                        dataHora: dataHoraRecusa,
+                        tipo: "RECUSA"
+                    };
+                }
+
+                return { autor: "-", dataHora: "", tipo: "PENDENTE" };
+            }
+
+            function renderizarCelulaDecisaoFT(decisao) {
+                if (!decisao || !decisao.autor || decisao.autor === "-") {
+                    return `<span class="text-muted">-</span>`;
+                }
+                const clsAutor = decisao.tipo === "RECUSA"
+                    ? "ft-decisao-autor is-recusa"
+                    : (decisao.tipo === "APROVACAO" ? "ft-decisao-autor is-aprovacao" : "ft-decisao-autor");
+                const dtHTML = decisao.dataHora
+                    ? `<span class="ft-decisao-datahora">${escaparFT(decisao.dataHora)}</span>`
+                    : "";
+
+                return `
+                    <div class="ft-decisao-cell">
+                        <span class="${clsAutor}">${escaparFT(decisao.autor)}</span>
+                        ${dtHTML}
+                    </div>
+                `;
             }
 
             function coletarRegistrosDeTrocasFT() {
@@ -19596,40 +20105,63 @@ MARIA FERNANDA 30/10</textarea>
                     const subNome = h.substitutoNome || h.substituto || "-";
                     if (!solNome || normalizarFT(solNome) === "consertar") return;
 
+                    const solId = h.solicitanteId || h.solicitante_id || null;
+                    const subId = h.substitutoId || h.substituto_id || null;
+                    const idEsc = h.escalaOrigemId || h.escala_origem_id || null;
+
                     const d1 = h.data1 || h.data_1 || "";
                     const t1 = h.turno1 || h.turno_1 || "";
                     const d2 = h.data2 || h.data_2 || null;
                     const t2 = h.turno2 || h.turno_2 || null;
-                    const stInfo = normalizarStatusTrocaFT(h.status || h.statusAprovacao || h.status_aprovacao);
+                    const tipo = h.tipo || "Substituição";
 
-                    const idEsc = h.escalaOrigemId || h.escala_origem_id;
+                    const horario1 = resolverHorarioExatoMissaFT(idEsc, d1, t1, h.horario1 || h.horario_1 || h.horario);
+                    const horario2 = d2 ? resolverHorarioExatoMissaFT(null, d2, t2, h.horario2 || h.horario_2) : "";
+
+                    const funcaoSolicitante = resolverFuncaoMembroNaEscalaFT({
+                        escalaId: idEsc,
+                        data: d1,
+                        turno: t1,
+                        membroId: solId,
+                        membroNome: solNome,
+                        funcaoDireta: h.funcaoSolicitante || h.funcao_solicitante || h.funcao1 || h.funcao
+                    });
+
+                    const funcaoSubstituto = resolverFuncaoMembroNaEscalaFT({
+                        escalaId: null,
+                        data: d2 || d1,
+                        turno: d2 ? t2 : t1,
+                        membroId: subId,
+                        membroNome: subNome,
+                        funcaoDireta: h.funcaoSubstituto || h.funcao_substituto || h.funcao2
+                    });
+
+                    const stInfo = normalizarStatusTrocaFT(h.status || h.statusAprovacao || h.status_aprovacao);
+                    const decisao = resolverDecisaoTrocaFT(h, stInfo, subNome);
+
                     if (idEsc) chavesVistas.add(`ESC_${idEsc}`);
                     chavesVistas.add(`DT_${d1}_${t1}_${normalizarFT(solNome)}`);
 
-                    const aprovadorExplicito = h.avaliadoPor || h.aprovadoPor || h.avaliado_por || h.aprovado_por || "";
-                    let aprovadoPorFinal = "-";
-                    if (aprovadorExplicito) {
-                        aprovadoPorFinal = aprovadorExplicito;
-                    } else if (stInfo.grupo === "APROVADA") {
-                        aprovadoPorFinal = "Coordenação";
-                    }
-
                     lista.push({
                         categoria: "TROCA",
+                        solicitanteChave: normalizarFT(solNome),
                         solicitanteNome: solNome,
-                        solicitanteId: h.solicitanteId || h.solicitante_id || null,
+                        solicitanteId: solId,
+                        funcaoSolicitante,
+                        substitutoChave: normalizarFT(subNome),
                         substitutoNome: subNome,
-                        substitutoId: h.substitutoId || h.substituto_id || null,
-                        tipo: h.tipo || "Substituição",
+                        substitutoId: subId,
+                        funcaoSubstituto,
+                        tipo,
                         data1: d1,
-                        turno1: t1,
+                        horario1,
                         data2: d2,
-                        turno2: t2,
+                        horario2,
                         statusGrupo: stInfo.grupo,
                         statusLabel: stInfo.label,
                         pillClass: stInfo.pillClass,
-                        aprovadoPor: aprovadoPorFinal,
-                        justificativa: h.comentario || h.justificativa || "-"
+                        decisao,
+                        justificativa: h.comentario || h.justificativa || ""
                     });
                 });
 
@@ -19638,31 +20170,127 @@ MARIA FERNANDA 30/10</textarea>
                     const chaveDt = `DT_${e.data}_${e.turno}_${normalizarFT(e.coroinhaNome)}`;
                     if ((chaveEsc && chavesVistas.has(chaveEsc)) || chavesVistas.has(chaveDt)) return;
 
+                    const horario1 = resolverHorarioExatoMissaFT(e.id, e.data, e.turno, e.horario);
+                    const funcaoSol = resolverFuncaoMembroNaEscalaFT({
+                        escalaId: e.id,
+                        data: e.data,
+                        turno: e.turno,
+                        membroId: e.coroinhaId,
+                        membroNome: e.coroinhaNome,
+                        funcaoDireta: e.funcao
+                    });
+                    const funcaoSub = resolverFuncaoMembroNaEscalaFT({
+                        escalaId: null,
+                        data: e.data,
+                        turno: e.turno,
+                        membroId: null,
+                        membroNome: e.substitutoNome,
+                        funcaoDireta: null
+                    });
+
                     lista.push({
                         categoria: "TROCA",
-                        solicitanteNome: e.coroinhaNome || "Membro",
+                        solicitanteChave: normalizarFT(e.coroinhaNome),
+                        solicitanteNome: e.coroinhaNome || "Usuário",
                         solicitanteId: e.coroinhaId || null,
+                        funcaoSolicitante: funcaoSol,
+                        substitutoChave: normalizarFT(e.substitutoNome),
                         substitutoNome: e.substitutoNome,
                         substitutoId: null,
+                        funcaoSubstituto: funcaoSub,
                         tipo: "Substituição",
                         data1: e.data || "",
-                        turno1: e.turno || "",
+                        horario1,
                         data2: null,
-                        turno2: null,
+                        horario2: "",
                         statusGrupo: "APROVADA",
                         statusLabel: "Aprovada",
                         pillClass: "ft-pill-aprovada",
-                        aprovadoPor: "Coordenação",
-                        justificativa: e.detalheStatus || "Substituição efetivada"
+                        decisao: { autor: "Coordenação", dataHora: "", tipo: "APROVACAO" },
+                        justificativa: e.detalheStatus || ""
                     });
                 });
 
-                return lista.sort((a, b) => String(b.data1).localeCompare(String(a.data1)));
+                return lista.sort((a, b) => {
+                    if (a.data1 !== b.data1) return String(b.data1).localeCompare(String(a.data1));
+                    return String(b.horario1).localeCompare(String(a.horario1));
+                });
+            }
+
+            function agruparPorChaveUsuarioFT(registros, campoChave) {
+                const mapa = new Map();
+                registros.forEach(item => {
+                    const ch = item[campoChave];
+                    if (!ch) return;
+                    if (!mapa.has(ch)) {
+                        mapa.set(ch, {
+                            chave: ch,
+                            principal: item,
+                            itens: [item]
+                        });
+                    } else {
+                        mapa.get(ch).itens.push(item);
+                    }
+                });
+                return Array.from(mapa.values());
             }
 
             // ------------------------------------------------------------------------
-            // 5. MODAL INDIVIDUAL ISOLADO DESTA ABA (#modalDetalheFaltasTrocasUsuario)
-            // Totalmente independente do modal da aba "Resumo" (#modalHistoricoUsuario)
+            // 5. MODAL DE JUSTIFICATIVA COMPLETA (#modalJustificativaFT)
+            // ------------------------------------------------------------------------
+            function garantirModalJustificativaFT() {
+                if (document.getElementById("modalJustificativaFT")) return;
+
+                const wrap = document.createElement("div");
+                wrap.innerHTML = `
+                    <div class="modal fade" id="modalJustificativaFT" tabindex="-1"
+                         aria-labelledby="ft-just-modal-titulo" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header modal-header-liturgical py-2 px-3">
+                                    <div>
+                                        <h6 class="modal-title fw-bold mb-0" id="ft-just-modal-titulo">Justificativa</h6>
+                                        <small id="ft-just-modal-subtitulo" class="text-white-50"></small>
+                                    </div>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                                <div class="modal-body p-3">
+                                    <div id="ft-just-modal-texto" class="ft-just-box-completa"></div>
+                                </div>
+                                <div class="modal-footer bg-light border-top py-2 px-3">
+                                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Fechar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(wrap.firstElementChild);
+            }
+
+            window.abrirJustificativaCompletaFT = function (chave) {
+                const reg = cacheJustificativasFT.get(chave);
+                if (!reg) return;
+
+                garantirModalJustificativaFT();
+                document.getElementById("ft-just-modal-titulo").textContent = reg.titulo || "Justificativa";
+                document.getElementById("ft-just-modal-subtitulo").textContent = reg.subtitulo || "";
+                document.getElementById("ft-just-modal-texto").textContent = reg.texto;
+
+                const modalEl = document.getElementById("modalJustificativaFT");
+                if (modalEl) {
+                    const inst = bootstrap.Modal.getOrCreateInstance(modalEl);
+                    inst.show();
+                    setTimeout(() => {
+                        const backdrops = document.querySelectorAll(".modal-backdrop");
+                        if (backdrops.length > 1) {
+                            backdrops[backdrops.length - 1].style.zIndex = "1065";
+                        }
+                    }, 20);
+                }
+            };
+
+            // ------------------------------------------------------------------------
+            // 6. MODAL INDIVIDUAL ISOLADO (#modalDetalheFaltasTrocasUsuario)
             // ------------------------------------------------------------------------
             function garantirModalIsoladoFT() {
                 if (document.getElementById("modalDetalheFaltasTrocasUsuario")) return;
@@ -19680,7 +20308,7 @@ MARIA FERNANDA 30/10</textarea>
                                         </div>
                                         <div>
                                             <span class="badge bg-warning text-dark fw-bold mb-1" style="font-size: 0.66rem;">
-                                                FALTAS E TROCAS • CONSULTA INDIVIDUAL
+                                                FALTAS E TROCAS • HISTÓRICO INDIVIDUAL
                                             </span>
                                             <h5 class="modal-title fw-bold mb-0" id="ft-modal-titulo-nome">Usuário</h5>
                                             <small id="ft-modal-subtitulo" class="text-white-50"></small>
@@ -19714,11 +20342,12 @@ MARIA FERNANDA 30/10</textarea>
                                             <thead>
                                                 <tr>
                                                     <th>Tipo</th>
-                                                    <th>Data / Turno</th>
+                                                    <th>Data / Horário</th>
+                                                    <th>Função</th>
                                                     <th>Com quem</th>
                                                     <th>Status</th>
                                                     <th>Aprovado por</th>
-                                                    <th>Detalhe / Justificativa</th>
+                                                    <th>Justificativa</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="ft-modal-tbody"></tbody>
@@ -19739,67 +20368,80 @@ MARIA FERNANDA 30/10</textarea>
             function coletarMovimentacoesDoUsuarioFT(chaveUsuario) {
                 const registros = [];
 
-                // Faltas em que o usuário faltou ou assumiu a substituição
                 coletarRegistrosDeFaltasFT().forEach(f => {
-                    const ehFaltoso = normalizarFT(f.membroNome) === chaveUsuario;
-                    const ehSubstituto = f.substitutoNome && f.substitutoNome !== "-" && normalizarFT(f.substitutoNome) === chaveUsuario;
+                    const ehFaltoso = f.membroChave === chaveUsuario;
+                    const ehSubstituto = Boolean(f.substitutoNome) && normalizarFT(f.substitutoNome) === chaveUsuario;
                     if (!ehFaltoso && !ehSubstituto) return;
 
-                    let comQuem = "-";
-                    if (ehFaltoso && f.substitutoNome && f.substitutoNome !== "-") {
-                        comQuem = `Substituto: ${f.substitutoNome}`;
+                    let comQuemNome = "-";
+                    let comQuemRole = "";
+                    if (ehFaltoso && f.substitutoNome) {
+                        comQuemNome = f.substitutoNome;
+                        comQuemRole = "Substituto";
                     } else if (ehSubstituto && !ehFaltoso) {
-                        comQuem = `Substituiu ${f.membroNome}`;
+                        comQuemNome = f.membroNome;
+                        comQuemRole = "Titular ausente";
                     }
 
                     registros.push({
                         categoria: "FALTA",
-                        tipoLabel: ehSubstituto && !ehFaltoso ? "Substituição (Falta)" : "Falta",
+                        tipoLabel: ehSubstituto && !ehFaltoso ? "Substituição" : "Falta",
                         data: f.data || "",
-                        turno: f.turno || "",
+                        horarioExato: f.horarioExato || "",
                         dataExtra: "",
-                        comQuem,
+                        funcao: f.funcao || "-",
+                        comQuemNome,
+                        comQuemRole,
+                        comQuemVariante: ehFaltoso ? "substituto" : "solicitante",
                         statusGrupo: f.statusGrupo,
                         statusLabel: f.statusLabel,
                         pillClass: f.pillClass,
-                        aprovadoPor: f.aprovadoPor || "-",
-                        detalhe: `${f.celebracao} (${f.funcao})${f.detalhe ? ` • ${f.detalhe}` : ""}`
+                        decisao: {
+                            autor: f.decisaoAutor || "-",
+                            dataHora: f.decisaoDataHora || "",
+                            tipo: f.decisaoTipo || "PENDENTE"
+                        },
+                        justificativa: f.justificativa || ""
                     });
                 });
 
-                // Trocas e substituições em que o usuário foi solicitante ou substituto
                 coletarRegistrosDeTrocasFT().forEach(t => {
-                    const ehSolicitante = normalizarFT(t.solicitanteNome) === chaveUsuario;
-                    const ehSubstituto = t.substitutoNome && t.substitutoNome !== "-" && normalizarFT(t.substitutoNome) === chaveUsuario;
+                    const ehSolicitante = t.solicitanteChave === chaveUsuario;
+                    const ehSubstituto = t.substitutoChave && t.substitutoChave === chaveUsuario;
                     if (!ehSolicitante && !ehSubstituto) return;
 
-                    let comQuem = "-";
-                    if (ehSolicitante) {
-                        comQuem = t.substitutoNome && t.substitutoNome !== "-" ? `Com ${t.substitutoNome}` : "-";
-                    } else if (ehSubstituto) {
-                        comQuem = `Pedido de ${t.solicitanteNome}`;
-                    }
+                    const comQuemNome = ehSolicitante ? (t.substitutoNome || "-") : t.solicitanteNome;
+                    const comQuemRole = ehSolicitante
+                        ? (t.funcaoSubstituto && t.funcaoSubstituto !== "-" ? t.funcaoSubstituto : "Substituto")
+                        : (t.funcaoSolicitante && t.funcaoSolicitante !== "-" ? t.funcaoSolicitante : "Solicitante");
 
+                    const funcaoUsuario = ehSolicitante ? t.funcaoSolicitante : t.funcaoSubstituto;
                     const dataExtra = (t.tipo === "Troca" && t.data2)
-                        ? `Permuta: ${formatarDataFT(t.data2)}${t.turno2 ? ` (${t.turno2})` : ""}`
+                        ? `Permuta: ${formatarDataComHorarioExatoFT(t.data2, t.horario2)}`
                         : "";
 
                     registros.push({
                         categoria: "TROCA",
                         tipoLabel: t.tipo || "Substituição",
                         data: t.data1 || "",
-                        turno: t.turno1 || "",
+                        horarioExato: t.horario1 || "",
                         dataExtra,
-                        comQuem,
+                        funcao: funcaoUsuario || "-",
+                        comQuemNome,
+                        comQuemRole,
+                        comQuemVariante: ehSolicitante ? "substituto" : "solicitante",
                         statusGrupo: t.statusGrupo,
                         statusLabel: t.statusLabel,
                         pillClass: t.pillClass,
-                        aprovadoPor: t.aprovadoPor || "-",
-                        detalhe: t.justificativa || "-"
+                        decisao: t.decisao,
+                        justificativa: t.justificativa || ""
                     });
                 });
 
-                return registros.sort((a, b) => String(b.data).localeCompare(String(a.data)));
+                return registros.sort((a, b) => {
+                    if (a.data !== b.data) return String(b.data).localeCompare(String(a.data));
+                    return String(b.horarioExato).localeCompare(String(a.horarioExato));
+                });
             }
 
             function obterMesesParaModalFT(registrosUsuario) {
@@ -19827,12 +20469,10 @@ MARIA FERNANDA 30/10</textarea>
                 const doMes = todosDoUsuario.filter(r =>
                     mesSel === "TODOS" || extrairMesAnoFT(r.data) === mesSel
                 );
-
                 const filtrados = doMes.filter(r =>
                     tipoSel === "TODOS" || r.categoria === tipoSel
                 );
 
-                // Atualiza KPIs do modal
                 const totalMes = doMes.length;
                 const qtdTrocas = doMes.filter(r => r.categoria === "TROCA").length;
                 const qtdFaltas = doMes.filter(r => r.categoria === "FALTA").length;
@@ -19848,7 +20488,6 @@ MARIA FERNANDA 30/10</textarea>
                     `;
                 }
 
-                // Atualiza estado visual dos filtros internos do modal
                 ["TODOS", "TROCA", "FALTA"].forEach(k => {
                     document.getElementById(`ft-modal-pill-${k}`)?.classList.toggle("active", tipoSel === k);
                 });
@@ -19857,24 +20496,42 @@ MARIA FERNANDA 30/10</textarea>
                 if (!tbody) return;
 
                 if (filtrados.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="ft-empty-row">Nenhum registro encontrado para ${escaparFT(estadoModalFT.usuarioNome)} neste mês.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" class="ft-empty-row">Nenhum registro encontrado para ${escaparFT(estadoModalFT.usuarioNome)} neste mês.</td></tr>`;
                     return;
                 }
 
-                tbody.innerHTML = filtrados.map(r => `
-                    <tr>
-                        <td><span class="ft-pill ${r.categoria === 'FALTA' ? 'ft-pill-recusada' : 'ft-pill-neutral'}">${escaparFT(r.tipoLabel)}</span></td>
-                        <td style="white-space: nowrap;">
-                            <strong>${formatarDataFT(r.data)}</strong>
-                            ${r.turno ? `<span class="text-muted"> • ${escaparFT(r.turno)}</span>` : ""}
-                            ${r.dataExtra ? `<div class="text-muted" style="font-size: 0.7rem;">${escaparFT(r.dataExtra)}</div>` : ""}
-                        </td>
-                        <td><strong>${escaparFT(r.comQuem)}</strong></td>
-                        <td><span class="ft-pill ${r.pillClass}">${escaparFT(r.statusLabel)}</span></td>
-                        <td>${escaparFT(r.aprovadoPor)}</td>
-                        <td class="ft-col-obs">${escaparFT(r.detalhe)}</td>
-                    </tr>
-                `).join("");
+                tbody.innerHTML = filtrados.map(r => {
+                    const dataHoraStr = formatarDataComHorarioExatoFT(r.data, r.horarioExato);
+                    const comQuemHTML = r.comQuemNome && r.comQuemNome !== "-"
+                        ? `<div class="ft-person-cell">
+                               <span class="${r.comQuemVariante === 'substituto' ? 'fw-bold' : 'fw-bold text-wine'}"
+                                     style="${r.comQuemVariante === 'substituto' ? 'color: var(--status-confirmed-text);' : ''}">
+                                   ${escaparFT(r.comQuemNome)}
+                               </span>
+                               ${r.comQuemRole ? `<span class="ft-funcao-tag ${r.comQuemVariante === 'substituto' ? 'is-sub-fn' : ''}">${escaparFT(r.comQuemRole)}</span>` : ""}
+                           </div>`
+                        : `<span class="text-muted">-</span>`;
+
+                    const justHTML = registrarJustificativaExpansivelFT(r.justificativa, {
+                        titulo: `Justificativa — ${estadoModalFT.usuarioNome}`,
+                        subtitulo: `${r.tipoLabel} • ${dataHoraStr}`
+                    });
+
+                    return `
+                        <tr>
+                            <td><span class="ft-pill ${r.categoria === 'FALTA' ? 'ft-pill-recusada' : 'ft-pill-neutral'}">${escaparFT(r.tipoLabel)}</span></td>
+                            <td style="white-space: nowrap;">
+                                <strong>${escaparFT(dataHoraStr)}</strong>
+                                ${r.dataExtra ? `<div class="text-muted" style="font-size: 0.7rem;">${escaparFT(r.dataExtra)}</div>` : ""}
+                            </td>
+                            <td><span class="ft-funcao-tag">${escaparFT(r.funcao)}</span></td>
+                            <td>${comQuemHTML}</td>
+                            <td><span class="ft-pill ${r.pillClass}">${escaparFT(r.statusLabel)}</span></td>
+                            <td>${renderizarCelulaDecisaoFT(r.decisao)}</td>
+                            <td>${justHTML}</td>
+                        </tr>
+                    `;
+                }).join("");
             }
 
             window.abrirDetalheFaltasTrocasUsuario = function (nomeUsuario, idOpcional) {
@@ -19906,7 +20563,6 @@ MARIA FERNANDA 30/10</textarea>
                         `<option value="TODOS">Todos os meses</option>` +
                         mesesDisp.map(m => `<option value="${m}">${formatarMesAnoLabelFT(m)}</option>`).join("");
 
-                    // Seleciona automaticamente o mês mais recente com movimentação do usuário (ou Todos)
                     estadoModalFT.mes = mesesDoUsuario.length > 0 ? mesesDoUsuario[0] : "TODOS";
                     selectMes.value = estadoModalFT.mes;
                 }
@@ -19928,7 +20584,7 @@ MARIA FERNANDA 30/10</textarea>
             };
 
             // ------------------------------------------------------------------------
-            // 6. CONTROLES DAS TABS, FILTROS E RENDERIZAÇÃO PRINCIPAL
+            // 7. CONTROLES DAS TABS, FILTROS E RENDERIZAÇÃO AGRUPADA
             // ------------------------------------------------------------------------
             window.alternarSubAbaFaltasTrocas = function (aba) {
                 estadoFT.abaAtiva = (aba === "TROCAS") ? "TROCAS" : "FALTAS";
@@ -19996,6 +20652,8 @@ MARIA FERNANDA 30/10</textarea>
             window.renderizarRelatorioFaltasETrocas = function () {
                 construirEstruturaFaltasTrocas();
 
+                cacheJustificativasFT.clear();
+                seqJustificativaFT = 0;
                 listaUsuariosUnicosFT = coletarTodosUsuariosFT();
 
                 const termoRaw = estadoFT.busca.trim();
@@ -20019,7 +20677,7 @@ MARIA FERNANDA 30/10</textarea>
                 const faltasFiltradas = todasFaltas.filter(f => {
                     if (filtroStatus !== "TODOS" && f.statusGrupo !== filtroStatus) return false;
                     if (chaveExata || termo) {
-                        return matchUsuario(f.membroNome) || (f.substitutoNome && f.substitutoNome !== "-" && matchUsuario(f.substitutoNome));
+                        return matchUsuario(f.membroNome) || (f.substitutoNome && matchUsuario(f.substitutoNome));
                     }
                     return true;
                 });
@@ -20032,7 +20690,10 @@ MARIA FERNANDA 30/10</textarea>
                     return true;
                 });
 
-                // Atualiza contadores gerais e das tabs
+                // Agrupamento sem repetição de nomes nas listagens
+                const faltasAgrupadas = agruparPorChaveUsuarioFT(faltasFiltradas, "membroChave");
+                const trocasAgrupadas = agruparPorChaveUsuarioFT(trocasFiltradas, "solicitanteChave");
+
                 const totalGeral = faltasFiltradas.length + trocasFiltradas.length;
                 const badgeGeral = document.getElementById("ft-badge-total-geral");
                 const tabCountFaltas = document.getElementById("ft-tab-count-faltas");
@@ -20043,10 +20704,10 @@ MARIA FERNANDA 30/10</textarea>
                 if (badgeGeral) badgeGeral.textContent = `${totalGeral} registro(s)`;
                 if (tabCountFaltas) tabCountFaltas.textContent = faltasFiltradas.length;
                 if (tabCountTrocas) tabCountTrocas.textContent = trocasFiltradas.length;
-                if (blocoCountFaltas) blocoCountFaltas.textContent = `${faltasFiltradas.length} registro(s)`;
-                if (blocoCountTrocas) blocoCountTrocas.textContent = `${trocasFiltradas.length} registro(s)`;
+                if (blocoCountFaltas) blocoCountFaltas.textContent = `${faltasAgrupadas.length} usuário(s) • ${faltasFiltradas.length} registro(s)`;
+                if (blocoCountTrocas) blocoCountTrocas.textContent = `${trocasAgrupadas.length} usuário(s) • ${trocasFiltradas.length} registro(s)`;
 
-                // KPIs com títulos curtos e diretos (sem "coberta")
+                // KPIs compactos
                 const qtdFaltasPend = faltasFiltradas.filter(f => f.statusGrupo === "PENDENTE").length;
                 const qtdFaltasAprov = faltasFiltradas.filter(f => f.statusGrupo === "APROVADA").length;
                 const qtdTrocasAprov = trocasFiltradas.filter(t => t.statusGrupo === "APROVADA").length;
@@ -20079,57 +20740,86 @@ MARIA FERNANDA 30/10</textarea>
                     `;
                 }
 
-                // Garante exibição apenas do bloco da aba ativa
                 window.alternarSubAbaFaltasTrocas(estadoFT.abaAtiva);
 
-                // Renderiza tabela de Faltas
+                // ---- TABELA 1: FALTAS (AGRUPADA, SEM LITURGIA, HORÁRIO EXATO, NOME DIRETO DO SUBSTITUTO) ----
                 const tbodyFaltas = document.getElementById("tbody-ft-faltas");
                 if (tbodyFaltas) {
-                    if (faltasFiltradas.length === 0) {
+                    if (faltasAgrupadas.length === 0) {
                         tbodyFaltas.innerHTML = `<tr><td colspan="5" class="ft-empty-row">Nenhuma falta encontrada para os filtros selecionados.</td></tr>`;
                     } else {
-                        tbodyFaltas.innerHTML = faltasFiltradas.map(f => `
-                            <tr>
-                                <td>${renderizarNomeClicavelFT(f.membroNome, f.membroId)}</td>
-                                <td style="white-space: nowrap;">
-                                    <strong>${formatarDataFT(f.data)}</strong>
-                                    ${f.turno ? `<span class="text-muted"> • ${escaparFT(f.turno)}</span>` : ""}
-                                </td>
-                                <td>
-                                    <span class="me-1">${escaparFT(f.celebracao)}</span>
-                                    <span class="ft-pill ft-pill-neutral">${escaparFT(f.funcao)}</span>
-                                </td>
-                                <td><span class="ft-pill ${f.pillClass}">${escaparFT(f.statusLabel)}</span></td>
-                                <td class="ft-col-obs">${escaparFT(f.detalhe)}</td>
-                            </tr>
-                        `).join("");
-                    }
-                }
+                        tbodyFaltas.innerHTML = faltasAgrupadas.map(grupo => {
+                            const f = grupo.principal;
+                            const qtd = grupo.itens.length;
+                            const dataHoraStr = formatarDataComHorarioExatoFT(f.data, f.horarioExato);
 
-                // Renderiza tabela de Trocas / Substituições
-                const tbodyTrocas = document.getElementById("tbody-ft-trocas");
-                if (tbodyTrocas) {
-                    if (trocasFiltradas.length === 0) {
-                        tbodyTrocas.innerHTML = `<tr><td colspan="7" class="ft-empty-row">Nenhuma troca ou substituição encontrada para os filtros selecionados.</td></tr>`;
-                    } else {
-                        tbodyTrocas.innerHTML = trocasFiltradas.map(t => {
-                            const dataPermuta = (t.tipo === "Troca" && t.data2)
-                                ? `<div class="text-muted" style="font-size: 0.7rem;">Permuta: ${formatarDataFT(t.data2)}${t.turno2 ? ` (${escaparFT(t.turno2)})` : ""}</div>`
-                                : "";
+                            // Exibe diretamente o nome do usuário que aceitou substituir; caso contrário exibe justificativa expansível ou "-"
+                            let celulaSubstitutoDetalhe = "";
+                            if (f.substitutoNome) {
+                                celulaSubstitutoDetalhe = renderizarNomeClicavelFT(f.substitutoNome, f.substitutoId, "substituto", 1);
+                            } else if (f.justificativa) {
+                                celulaSubstitutoDetalhe = registrarJustificativaExpansivelFT(f.justificativa, {
+                                    titulo: `Detalhe da Falta — ${f.membroNome}`,
+                                    subtitulo: `${dataHoraStr} • ${f.funcao}`
+                                });
+                            } else {
+                                celulaSubstitutoDetalhe = `<span class="text-muted">-</span>`;
+                            }
 
                             return `
                                 <tr>
-                                    <td>${renderizarNomeClicavelFT(t.solicitanteNome, t.solicitanteId)}</td>
-                                    <td>${renderizarNomeClicavelFT(t.substitutoNome, t.substitutoId)}</td>
+                                    <td>${renderizarNomeClicavelFT(f.membroNome, f.membroId, "solicitante", qtd)}</td>
+                                    <td style="white-space: nowrap;"><strong>${escaparFT(dataHoraStr)}</strong></td>
+                                    <td><span class="ft-funcao-tag">${escaparFT(f.funcao)}</span></td>
+                                    <td><span class="ft-pill ${f.pillClass}">${escaparFT(f.statusLabel)}</span></td>
+                                    <td>${celulaSubstitutoDetalhe}</td>
+                                </tr>
+                            `;
+                        }).join("");
+                    }
+                }
+
+                // ---- TABELA 2: TROCAS E SUBSTITUIÇÕES (AGRUPADA, CORES DIFERENCIADAS, FUNÇÕES, DECISÃO + JUSTIFICATIVA) ----
+                const tbodyTrocas = document.getElementById("tbody-ft-trocas");
+                if (tbodyTrocas) {
+                    if (trocasAgrupadas.length === 0) {
+                        tbodyTrocas.innerHTML = `<tr><td colspan="7" class="ft-empty-row">Nenhuma troca ou substituição encontrada para os filtros selecionados.</td></tr>`;
+                    } else {
+                        tbodyTrocas.innerHTML = trocasAgrupadas.map(grupo => {
+                            const t = grupo.principal;
+                            const qtd = grupo.itens.length;
+                            const dataHora1 = formatarDataComHorarioExatoFT(t.data1, t.horario1);
+                            const dataHora2 = (t.tipo === "Troca" && t.data2)
+                                ? `<div class="text-muted" style="font-size: 0.7rem;">Permuta: ${escaparFT(formatarDataComHorarioExatoFT(t.data2, t.horario2))}</div>`
+                                : "";
+
+                            const justHTML = registrarJustificativaExpansivelFT(t.justificativa, {
+                                titulo: `Justificativa — ${t.solicitanteNome}`,
+                                subtitulo: `${t.tipo} com ${t.substitutoNome} • ${dataHora1}`
+                            });
+
+                            return `
+                                <tr>
+                                    <td>
+                                        <div class="ft-person-cell">
+                                            ${renderizarNomeClicavelFT(t.solicitanteNome, t.solicitanteId, "solicitante", qtd)}
+                                            <span class="ft-funcao-tag">${escaparFT(t.funcaoSolicitante)}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="ft-person-cell">
+                                            ${renderizarNomeClicavelFT(t.substitutoNome, t.substitutoId, "substituto", 1)}
+                                            <span class="ft-funcao-tag is-sub-fn">${escaparFT(t.funcaoSubstituto)}</span>
+                                        </div>
+                                    </td>
                                     <td><span class="ft-pill ft-pill-neutral">${escaparFT(t.tipo)}</span></td>
                                     <td style="white-space: nowrap;">
-                                        <strong>${formatarDataFT(t.data1)}</strong>
-                                        ${t.turno1 ? `<span class="text-muted"> • ${escaparFT(t.turno1)}</span>` : ""}
-                                        ${dataPermuta}
+                                        <strong>${escaparFT(dataHora1)}</strong>
+                                        ${dataHora2}
                                     </td>
                                     <td><span class="ft-pill ${t.pillClass}">${escaparFT(t.statusLabel)}</span></td>
-                                    <td>${escaparFT(t.aprovadoPor)}</td>
-                                    <td class="ft-col-obs">${escaparFT(t.justificativa)}</td>
+                                    <td>${renderizarCelulaDecisaoFT(t.decisao)}</td>
+                                    <td>${justHTML}</td>
                                 </tr>
                             `;
                         }).join("");
@@ -20139,7 +20829,7 @@ MARIA FERNANDA 30/10</textarea>
             renderizarRelatorioFaltasETrocas = window.renderizarRelatorioFaltasETrocas;
 
             // ------------------------------------------------------------------------
-            // 7. INTEGRAÇÃO COM A NAVEGAÇÃO DO PAINEL ADMIN
+            // 8. INTEGRAÇÃO COM A NAVEGAÇÃO DO PAINEL ADMIN
             // ------------------------------------------------------------------------
             const _alternarAbaFTAnt = window.alternarAbaAdmin;
             window.alternarAbaAdmin = function (aba) {
