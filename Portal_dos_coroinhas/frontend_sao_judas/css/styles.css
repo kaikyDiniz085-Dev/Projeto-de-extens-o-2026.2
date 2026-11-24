@@ -1,0 +1,1163 @@
+        /* ==========================================================================
+           DESIGN TOKENS & PALETA LITÚRGICA (SÃO JUDAS TADEU)
+           ========================================================================== */
+        :root {
+            --liturgical-wine: #7C1D26;
+            --liturgical-wine-dark: #5A1219;
+            --liturgical-wine-light: #9E2B36;
+            --liturgical-wine-soft: rgba(124, 29, 38, 0.08);
+            --liturgical-gold: #D4AF37;
+            --liturgical-gold-hover: #C29B28;
+            --liturgical-amber: #F59E0B;
+            --liturgical-gold-soft: #FDF8E7;
+            --bg-cream: #FAF7F2;
+            --surface-white: #FFFFFF;
+            --text-dark: #2B2122;
+            --text-muted: #6C5E60;
+            --border-warm: #E9E0D6;
+            --status-confirmed-bg: #E8F5E9;
+            --status-confirmed-text: #1B5E20;
+            --status-pending-bg: #FDECEA;
+            --status-pending-text: #B71C1C;
+            --status-swap-bg: #FFF8E1;
+            --status-swap-text: #B26A00;
+            --radius-card: 16px;
+            --radius-btn: 10px;
+            --shadow-soft: 0 6px 24px rgba(90, 18, 25, 0.07);
+            --shadow-hover: 0 12px 28px rgba(90, 18, 25, 0.13);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-cream);
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding-bottom: 80px; /* Espaço para navegação mobile inferior */
+            overflow-x: hidden;
+        }
+
+        .font-liturgical {
+            font-family: 'Cinzel', serif;
+            letter-spacing: 0.5px;
+        }
+
+        /* ==========================================================================
+           UTILITÁRIOS DE CORES E BOTÕES CUSTOMIZADOS
+           ========================================================================== */
+        .bg-wine {
+            background: linear-gradient(135deg, var(--liturgical-wine) 0%, var(--liturgical-wine-dark) 100%);
+            color: #fff;
+        }
+
+        .text-wine {
+            color: var(--liturgical-wine) !important;
+        }
+
+        .text-gold {
+            color: var(--liturgical-gold) !important;
+        }
+
+        .btn-wine {
+            background: linear-gradient(135deg, var(--liturgical-wine) 0%, var(--liturgical-wine-dark) 100%);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-btn);
+            font-weight: 600;
+            padding: 0.65rem 1.25rem;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 12px rgba(124, 29, 38, 0.25);
+        }
+
+        .btn-wine:hover, .btn-wine:focus {
+            background: linear-gradient(135deg, var(--liturgical-wine-light) 0%, var(--liturgical-wine) 100%);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(124, 29, 38, 0.35);
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, var(--liturgical-gold) 0%, #B89018 100%);
+            color: #2B2122;
+            border: none;
+            border-radius: var(--radius-btn);
+            font-weight: 700;
+            padding: 0.65rem 1.25rem;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+        }
+
+        .btn-gold:hover, .btn-gold:focus {
+            background: linear-gradient(135deg, #E2BE46 0%, var(--liturgical-gold) 100%);
+            color: #1F1718;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline-wine {
+            color: var(--liturgical-wine);
+            border: 1.5px solid var(--liturgical-wine);
+            border-radius: var(--radius-btn);
+            font-weight: 600;
+            background-color: transparent;
+            transition: all 0.2s ease;
+        }
+
+        .btn-outline-wine:hover {
+            background-color: var(--liturgical-wine);
+            color: #fff;
+        }
+
+        /* ==========================================================================
+           TELA DE LOGIN
+           ========================================================================== */
+        .login-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem 1rem;
+            background: radial-gradient(circle at top, rgba(212, 175, 55, 0.14) 0%, transparent 60%),
+                        linear-gradient(180deg, #FAF7F2 0%, #F2ECE1 100%);
+        }
+
+        .login-card {
+            background: var(--surface-white);
+            border-radius: 24px;
+            border: 1px solid var(--border-warm);
+            box-shadow: 0 16px 40px rgba(90, 18, 25, 0.12);
+            max-width: 440px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .login-header {
+            background: linear-gradient(145deg, var(--liturgical-wine) 0%, var(--liturgical-wine-dark) 100%);
+            padding: 2.25rem 1.5rem 1.75rem;
+            text-align: center;
+            color: #fff;
+            position: relative;
+            border-bottom: 4px solid var(--liturgical-gold);
+        }
+
+        .crest-circle {
+            width: 82px;
+            height: 82px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #FFFDF9 0%, #F7EBC8 100%);
+            border: 3px solid var(--liturgical-gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        }
+
+        /* ==========================================================================
+           HEADER / NAVBAR FIXO E MENU MOBILE
+           ========================================================================== */
+        .app-navbar {
+            background: linear-gradient(135deg, var(--liturgical-wine) 0%, var(--liturgical-wine-dark) 100%);
+            border-bottom: 3px solid var(--liturgical-gold);
+            box-shadow: 0 4px 16px rgba(90, 18, 25, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+        }
+
+        .user-avatar-badge {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--liturgical-gold);
+            color: var(--liturgical-wine-dark);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #fff;
+            flex-shrink: 0;
+        }
+
+        /* Barra de Navegação Mobile Fixa no Rodapé */
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface-white);
+            border-top: 1px solid var(--border-warm);
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+            z-index: 1020;
+            display: flex;
+            justify-content: space-around;
+            padding: 0.45rem 0.5rem;
+        }
+
+        .mobile-nav-item {
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            padding: 0.35rem 0.85rem;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .mobile-nav-item i {
+            font-size: 1.15rem;
+        }
+
+        .mobile-nav-item.active {
+            color: var(--liturgical-wine);
+            background-color: var(--liturgical-wine-soft);
+        }
+
+        /* ==========================================================================
+           CARDS DO DASHBOARD (KPIs E MISSAS)
+           ========================================================================== */
+        .kpi-card {
+            background: var(--surface-white);
+            border-radius: var(--radius-card);
+            border: 1px solid var(--border-warm);
+            padding: 1.15rem 1.25rem;
+            box-shadow: var(--shadow-soft);
+            transition: transform 0.2s ease;
+            height: 100%;
+        }
+
+        .kpi-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        /* Card de Missa Individual */
+        .missa-card {
+            background: var(--surface-white);
+            border-radius: var(--radius-card);
+            border: 1px solid var(--border-warm);
+            border-left: 6px solid var(--liturgical-wine);
+            box-shadow: var(--shadow-soft);
+            transition: all 0.25s ease;
+            overflow: hidden;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .missa-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        /* Variações visuais de Status no Card */
+        .missa-card.status-confirmado {
+            border-left-color: #2E7D32;
+        }
+
+        .missa-card.status-pendente {
+            border-left-color: #D32F2F;
+            border-color: #F5C2C7;
+            background: linear-gradient(180deg, #FFFDFD 0%, #FFF5F5 100%);
+        }
+
+        .missa-card.status-troca {
+            border-left-color: var(--liturgical-amber);
+            background: linear-gradient(180deg, #FFFFFF 0%, #FFFDF6 100%);
+        }
+
+        /* Badges de Status e Turnos */
+        .badge-status {
+            padding: 0.45em 0.85em;
+            border-radius: 50rem;
+            font-weight: 600;
+            font-size: 0.76rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .badge-confirmado {
+            background-color: var(--status-confirmed-bg);
+            color: var(--status-confirmed-text);
+            border: 1px solid #C8E6C9;
+        }
+
+        .badge-pendente {
+            background-color: var(--status-pending-bg);
+            color: var(--status-pending-text);
+            border: 1px solid #FFCDD2;
+            animation: pulse-alert 2s infinite;
+        }
+
+        .badge-troca {
+            background-color: var(--status-swap-bg);
+            color: var(--status-swap-text);
+            border: 1px solid #FFE082;
+        }
+
+        @keyframes pulse-alert {
+            0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.45); }
+            70% { box-shadow: 0 0 0 8px rgba(211, 47, 47, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); }
+        }
+
+        .turno-pill {
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.35rem 0.75rem;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .turno-manha {
+            background-color: #FFF8E1;
+            color: #996500;
+            border: 1px solid #FFE082;
+        }
+
+        .turno-tarde {
+            background-color: #FFF3E0;
+            color: #BF360C;
+            border: 1px solid #FFCC80;
+        }
+
+        .turno-noite {
+            background-color: #EDE7F6;
+            color: #311B92;
+            border: 1px solid #D1C4E9;
+        }
+
+        /* ==========================================================================
+           MODAL DE TROCAS E SUBSTITUIÇÕES
+           ========================================================================== */
+        .modal-content {
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 20px 50px rgba(43, 33, 34, 0.25);
+            overflow: hidden;
+        }
+
+        .modal-header-liturgical {
+            background: linear-gradient(135deg, var(--liturgical-wine) 0%, var(--liturgical-wine-dark) 100%);
+            color: #fff;
+            border-bottom: 3px solid var(--liturgical-gold);
+            padding: 1.25rem 1.5rem;
+        }
+
+        /* Radio Cards para Tipo de Solicitação (Substituição vs Troca) */
+        .tipo-radio-card {
+            cursor: pointer;
+            border: 2px solid var(--border-warm);
+            border-radius: 14px;
+            padding: 0.9rem 1rem;
+            transition: all 0.2s ease;
+            background-color: #fff;
+            height: 100%;
+            display: block;
+            position: relative;
+        }
+
+        .tipo-radio-card:hover {
+            border-color: var(--liturgical-gold);
+            background-color: var(--liturgical-gold-soft);
+        }
+
+        .btn-check:checked + .tipo-radio-card {
+            border-color: var(--liturgical-wine);
+            background-color: var(--liturgical-wine-soft);
+            box-shadow: 0 4px 12px rgba(124, 29, 38, 0.12);
+        }
+
+        .session-box {
+            background-color: #FAF7F2;
+            border: 1px solid var(--border-warm);
+            border-radius: 14px;
+            padding: 1.15rem;
+            position: relative;
+        }
+
+        .session-box-2 {
+            background-color: #FFFDF7;
+            border: 1.5px dashed var(--liturgical-gold);
+            border-radius: 14px;
+            padding: 1.15rem;
+        }
+
+        /* ==========================================================================
+           TABELA DE ESCALA GERAL & EXPORTAÇÃO PDF
+           ========================================================================== */
+        .escala-container-card {
+            background: var(--surface-white);
+            border-radius: var(--radius-card);
+            border: 1px solid var(--border-warm);
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+        }
+
+        .table-escala thead th {
+            background-color: var(--liturgical-wine);
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.95rem 1rem;
+            border-bottom: 2px solid var(--liturgical-gold);
+            white-space: nowrap;
+        }
+
+        .table-escala tbody td {
+            vertical-align: middle;
+            padding: 0.9rem 1rem;
+            border-bottom: 1px solid var(--border-warm);
+            font-size: 0.92rem;
+        }
+
+        /* Linha com destaque de Falta / Pendente */
+        .row-pendente {
+            background-color: #FFF3F3 !important;
+        }
+
+        .row-pendente td {
+            border-bottom-color: #F5C2C7 !important;
+        }
+
+        .row-minha-escala {
+            background-color: #FDFBF5;
+        }
+
+        /* Cabeçalho Institucional para o PDF */
+        .pdf-header-banner {
+            border-bottom: 2px solid var(--liturgical-gold);
+            padding-bottom: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Utilitário para ocultar elementos na hora de gerar o PDF */
+        .pdf-export-mode .no-print-pdf {
+            display: none !important;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--liturgical-wine);
+            box-shadow: 0 0 0 0.22rem rgba(124, 29, 38, 0.15);
+        }
+
+        /* ==========================================================================
+           LAYOUT OFICIAL "ESCALA RESUMIDA A4 PAISAGEM (LANDSCAPE)" (FOLHA ÚNICA)
+           Calibrado milimetricamente para caber em 1 única página A4 Paisagem (297x210mm)
+           ========================================================================== */
+        .a4-preview-wrapper {
+            background: #E5DFD5;
+            padding: 1.25rem;
+            border-radius: 16px;
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        .folha-a4-resumida {
+            width: 1060px;
+            min-width: 1060px;
+            max-width: 1060px;
+            background: #FFFFFF;
+            color: #1A1A1A;
+            padding: 12px 14px;
+            border: 1px solid #C8BFB3;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            font-family: 'Inter', Arial, sans-serif;
+            font-size: 8px;
+            line-height: 1.15;
+            box-sizing: border-box;
+        }
+
+        /* Modo de captura estrita para 1 página A4 Paisagem no html2pdf */
+        .folha-a4-resumida.pdf-capture-active {
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 6px 10px !important;
+            width: 1050px !important;
+            min-width: 1050px !important;
+            max-width: 1050px !important;
+        }
+
+        .a4-grid-principal {
+            display: grid;
+            grid-template-columns: 44% 55%;
+            gap: 1%;
+            align-items: start;
+        }
+
+        .a4-semana-subgrid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            align-items: start;
+        }
+
+        .a4-fds-macro-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            align-items: start;
+        }
+
+        /* Cabeçalho / Medalhão da Escala Resumida */
+        .a4-medalhao-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1.5px solid var(--liturgical-wine);
+            background: linear-gradient(90deg, #FDF8E7 0%, #FFFFFF 100%);
+            padding: 5px 8px;
+            margin-bottom: 5px;
+            border-radius: 6px;
+        }
+
+        .a4-medalhao-brasao {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 2px solid var(--liturgical-gold);
+            background: radial-gradient(circle, #7C1D26 0%, #3E0A0F 100%);
+            color: var(--liturgical-gold);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            text-align: center;
+            font-family: 'Cinzel', serif;
+            font-weight: 800;
+            font-size: 5.5px;
+            box-shadow: inset 0 0 0 1.5px rgba(212, 175, 55, 0.4);
+        }
+
+        .a4-section-banner {
+            background: var(--liturgical-wine);
+            color: #FFFFFF;
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            font-size: 8.8px;
+            text-align: center;
+            padding: 3px 6px;
+            letter-spacing: 0.6px;
+            margin-bottom: 4px;
+            border-bottom: 2px solid var(--liturgical-gold);
+            text-transform: uppercase;
+        }
+
+        .a4-bloco-missa {
+            border: 1px solid #3A2E2F;
+            margin-bottom: 4px;
+            background: #FFFFFF;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .a4-bloco-titulo {
+            background: #EFE9DF;
+            color: #2B2122;
+            font-weight: 800;
+            font-size: 7.2px;
+            padding: 2px 4px;
+            border-bottom: 1px solid #3A2E2F;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 4px;
+            text-transform: uppercase;
+        }
+
+        .a4-bloco-subtitulo {
+            background: #FAF6F0;
+            color: var(--liturgical-wine);
+            font-weight: 700;
+            font-size: 7px;
+            text-align: center;
+            padding: 1.2px 4px;
+            border-bottom: 1px solid #8C7A7C;
+            text-transform: uppercase;
+        }
+
+        .a4-tabela-posicoes {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .a4-tabela-posicoes td {
+            border-bottom: 0.5px solid #C9C0B5;
+            padding: 1.1px 4px;
+            font-size: 7.3px;
+            vertical-align: middle;
+        }
+
+        .a4-tabela-posicoes tr:last-child td {
+            border-bottom: none;
+        }
+
+        .a4-col-funcao {
+            width: 32%;
+            font-weight: 700;
+            color: #2B2122;
+            background: #FBF9F5;
+            border-right: 1px solid #8C7A7C;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .a4-col-nome {
+            width: 68%;
+            font-weight: 500;
+            color: #111;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .a4-fds-grid-duplo {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-top: 1px solid #3A2E2F;
+        }
+
+        .a4-fds-grid-duplo > div:first-child {
+            border-right: 1px solid #3A2E2F;
+        }
+
+        .a4-aviso-especial-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 100%;
+            min-height: 58px;
+            padding: 5px;
+            background: #FFF9E6;
+            color: var(--liturgical-wine);
+            font-weight: 800;
+            font-size: 7.8px;
+            letter-spacing: 0.2px;
+            text-transform: uppercase;
+        }
+
+        .a4-aniversariantes-box {
+            border: 1.5px solid var(--liturgical-wine);
+            background: #FFFDF8;
+            margin-top: 4px;
+            page-break-inside: avoid;
+        }
+
+        .a4-aniversariantes-header {
+            background: var(--liturgical-gold);
+            color: #2B2122;
+            font-family: 'Cinzel', serif;
+            font-weight: 800;
+            font-size: 7.8px;
+            text-align: center;
+            padding: 2px 6px;
+            border-bottom: 1px solid var(--liturgical-wine);
+        }
+
+        .a4-aniversariantes-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 3px 6px;
+            gap: 2px 6px;
+            font-size: 7.3px;
+            font-weight: 600;
+        }
+
+        /* Estilos do Formulário de Disponibilidade (Inspirado no Google Forms Litúrgico) */
+        .forms-section-card {
+            background: var(--surface-white);
+            border-radius: var(--radius-card);
+            border: 1px solid var(--border-warm);
+            border-top: 5px solid var(--liturgical-wine);
+            box-shadow: var(--shadow-soft);
+            padding: 1.35rem 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .forms-question-card {
+            background: var(--surface-white);
+            border-radius: 14px;
+            border: 1px solid var(--border-warm);
+            padding: 1.2rem 1.4rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 3px 12px rgba(90, 18, 25, 0.04);
+        }
+
+        .forms-check-option {
+            padding: 0.55rem 0.85rem;
+            border-radius: 10px;
+            border: 1px solid #EFE9DF;
+            margin-bottom: 0.45rem;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+        }
+
+        .forms-check-option:hover {
+            background-color: var(--liturgical-gold-soft);
+            border-color: var(--liturgical-gold);
+        }
+
+        .admin-nav-pills .nav-link {
+            color: var(--text-dark);
+            font-weight: 600;
+            border-radius: 10px;
+            padding: 0.6rem 1.1rem;
+            border: 1px solid var(--border-warm);
+            background: #fff;
+            transition: all 0.2s ease;
+        }
+
+        .admin-nav-pills .nav-link.active {
+            background: linear-gradient(135deg, var(--liturgical-wine) 0%, var(--liturgical-wine-dark) 100%);
+            color: #fff;
+            border-color: var(--liturgical-wine);
+            box-shadow: 0 4px 12px rgba(124, 29, 38, 0.25);
+        }
+
+        /* ==========================================================================
+           REFINAMENTOS DE UI/UX, FLUIDEZ MOBILE-FIRST E RELATÓRIOS PDF
+           ========================================================================== */
+        .admin-nav-pills {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            scrollbar-width: thin;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .admin-nav-pills .nav-link {
+            white-space: nowrap;
+            font-size: 0.86rem;
+        }
+
+        /* Link interativo para abrir o Histórico Mensal do Coroinha (Exclusivo Admin) */
+        .admin-user-link {
+            color: var(--liturgical-wine);
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.15rem 0.45rem;
+            margin-left: -0.45rem;
+            border-radius: 8px;
+            transition: all 0.18s ease;
+        }
+
+        .admin-user-link:hover {
+            background-color: var(--liturgical-wine-soft);
+            color: var(--liturgical-wine-dark);
+            transform: translateX(2px);
+        }
+
+        .admin-user-link i {
+            font-size: 0.72rem;
+            opacity: 0.65;
+            transition: opacity 0.18s ease;
+        }
+
+        .admin-user-link:hover i {
+            opacity: 1;
+        }
+
+        /* Strip compacta de avisos rápidos no Dashboard (evita poluição visual) */
+        .quick-notice-strip {
+            background: var(--surface-white);
+            border: 1px solid var(--border-warm);
+            border-left: 4px solid var(--liturgical-gold);
+            border-radius: 14px;
+            padding: 0.85rem 1.15rem;
+            box-shadow: var(--shadow-soft);
+            transition: all 0.2s ease;
+        }
+
+        .quick-notice-strip.strip-wine {
+            border-left-color: var(--liturgical-wine);
+            background: linear-gradient(90deg, #FDF9FA 0%, #FFFFFF 100%);
+        }
+
+        /* Estilização das Folhas de Exportação de Relatórios Administrativos em PDF */
+        .pdf-report-container {
+            background: #FFFFFF;
+            color: #1F1718;
+            font-family: 'Inter', Arial, sans-serif;
+            padding: 18px 22px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .pdf-report-header {
+            border-bottom: 2px solid var(--liturgical-wine);
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pdf-report-section {
+            margin-bottom: 22px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .pdf-page-break {
+            page-break-before: always;
+            break-before: page;
+        }
+
+        .pdf-report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5px;
+            margin-top: 8px;
+        }
+
+        .pdf-report-table th {
+            background-color: var(--liturgical-wine);
+            color: #FFFFFF;
+            text-align: left;
+            padding: 6px 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 9.5px;
+            border: 1px solid var(--liturgical-wine-dark);
+        }
+
+        .pdf-report-table td {
+            padding: 6px 8px;
+            border: 1px solid #D9D0C5;
+            vertical-align: top;
+        }
+
+        .pdf-report-table tr:nth-child(even) td {
+            background-color: #FAF7F2;
+        }
+
+
+.crest-circle {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;       /* impede de ser espremido */
+  aspect-ratio: 1 / 1;  /* mantém quadrado */
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.crest-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.app-navbar .crest-circle {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+           OTIMIZAÇÃO VISUAL DOS BOTÕES DA NAVBAR (EXCLUSIVO DESKTOP / LAPTOP)
+           ========================================================================== */
+        @media (min-width: 768px) {
+            #main-navbar > .container {
+                max-width: 1380px;
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+            }
+
+            /* Evita quebra indesejada na marca e nos controles à direita */
+            #main-navbar .font-liturgical,
+            #header-user-name,
+            #main-navbar button[onclick="realizarLogout()"] {
+                white-space: nowrap;
+            }
+
+            /* Bandeja de agrupamento dos 5 botões de navegação desktop */
+            #main-navbar .d-none.d-md-flex {
+                background: rgba(0, 0, 0, 0.16);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                border-radius: 12px;
+                padding: 4px;
+                gap: 0.35rem !important;
+                margin-right: 0.25rem !important;
+            }
+
+            /* Padronização de altura, proporção e alinhamento interno dos botões */
+            #main-navbar .d-none.d-md-flex > .btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.42rem;
+                height: 36px;
+                padding: 0 0.9rem !important;
+                border-radius: 8px !important;
+                font-size: 0.81rem;
+                line-height: 1;
+                white-space: nowrap;
+                letter-spacing: 0.01em;
+                transition: background-color 0.2s ease, color 0.2s ease,
+                            border-color 0.2s ease, transform 0.18s ease,
+                            box-shadow 0.2s ease;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn i {
+                margin-right: 0 !important;
+                font-size: 0.82rem;
+            }
+
+            /* Estado de foco acessível usando token da paleta */
+            #main-navbar .d-none.d-md-flex > .btn:focus-visible {
+                outline: none;
+                box-shadow: 0 0 0 2px var(--liturgical-wine-dark),
+                            0 0 0 4px var(--liturgical-gold) !important;
+            }
+
+            /* 1. Botões de navegação inativos (.btn-outline-light) — estilo ghost limpo */
+            #main-navbar .d-none.d-md-flex > .btn-outline-light {
+                background-color: transparent;
+                border: 1px solid transparent;
+                color: rgba(255, 255, 255, 0.88);
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn-outline-light:hover {
+                background-color: rgba(255, 255, 255, 0.12);
+                border-color: rgba(255, 255, 255, 0.2);
+                color: var(--surface-white);
+                transform: translateY(-1px);
+            }
+
+            /* 2. Botão da aba ativa (.btn-light) */
+            #main-navbar .d-none.d-md-flex > .btn-light {
+                background-color: var(--surface-white);
+                border: 1px solid var(--surface-white);
+                color: var(--liturgical-wine-dark);
+                font-weight: 700 !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn-light:hover {
+                background-color: var(--bg-cream);
+                border-color: var(--bg-cream);
+                color: var(--liturgical-wine-dark);
+                transform: translateY(-1px);
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn-light i {
+                color: var(--liturgical-wine) !important;
+            }
+
+            /* Separador visual entre navegação comum e botões de destaque (somente se houver item antes) */
+            #main-navbar .d-none.d-md-flex > .btn:not(.d-none) ~ #nav-btn-escala {
+                margin-left: 0.45rem;
+                position: relative;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn:not(.d-none) ~ #nav-btn-escala::before {
+                content: "";
+                position: absolute;
+                left: -0.4rem;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 1px;
+                height: 20px;
+                background-color: rgba(255, 255, 255, 0.22);
+                pointer-events: none;
+            }
+
+            /* 3. Botão de destaque principal: Ver Escala Geral (.btn-gold) */
+            #nav-btn-escala.btn-gold {
+                background: linear-gradient(135deg, var(--liturgical-gold) 0%, var(--liturgical-gold-hover) 100%);
+                color: var(--text-dark);
+                border: 1px solid rgba(255, 255, 255, 0.22);
+                font-weight: 700;
+                box-shadow: 0 2px 10px rgba(212, 175, 55, 0.28);
+            }
+
+            #nav-btn-escala.btn-gold:hover {
+                background: linear-gradient(135deg, #E2BE46 0%, var(--liturgical-gold) 100%);
+                color: var(--text-dark);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 14px rgba(212, 175, 55, 0.42);
+            }
+
+            /* 4. Botão administrativo: harmonia com vinho + dourado sem competir com .btn-gold */
+            #nav-btn-admin.btn-warning {
+                background: rgba(212, 175, 55, 0.16);
+                color: var(--liturgical-gold-soft);
+                border: 1px solid rgba(212, 175, 55, 0.65);
+                font-weight: 700;
+                box-shadow: none;
+            }
+
+            #nav-btn-admin.btn-warning i {
+                color: var(--liturgical-gold) !important;
+            }
+
+            #nav-btn-admin.btn-warning:hover {
+                background: rgba(212, 175, 55, 0.28);
+                border-color: var(--liturgical-gold);
+                color: var(--surface-white);
+                transform: translateY(-1px);
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+            }
+
+            #nav-badge-admin-pendentes {
+                top: -5px !important;
+                right: -5px !important;
+                left: auto !important;
+                transform: none !important;
+                border: 1.5px solid var(--liturgical-wine-dark);
+            }
+
+            /* Alinhamento da pílula de usuário e do botão Sair com a mesma altura da barra */
+            #main-navbar button[onclick="realizarLogout()"] {
+                height: 36px;
+                display: inline-flex;
+                align-items: center;
+                padding: 0 0.75rem !important;
+                border-radius: 8px !important;
+                border-color: rgba(255, 255, 255, 0.28);
+                transition: all 0.2s ease;
+            }
+
+            #main-navbar button[onclick="realizarLogout()"]:hover {
+                background-color: rgba(255, 255, 255, 0.14);
+                border-color: rgba(255, 255, 255, 0.5);
+                color: var(--surface-white);
+            }
+        }
+
+        /* Ajuste proporcional para notebooks menores (768px a 1199px) evitando aperto */
+        @media (min-width: 768px) and (max-width: 1199.98px) {
+            #main-navbar .crest-circle {
+                width: 42px;
+                height: 42px;
+            }
+
+            #main-navbar .font-liturgical {
+                font-size: 0.82rem !important;
+            }
+
+            #main-navbar .d-none.d-md-flex {
+                gap: 0.25rem !important;
+                padding: 3px;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn {
+                height: 34px;
+                padding: 0 0.6rem !important;
+                font-size: 0.74rem;
+                gap: 0.3rem;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn:not(.d-none) ~ #nav-btn-escala {
+                margin-left: 0.25rem;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn:not(.d-none) ~ #nav-btn-escala::before {
+                left: -0.25rem;
+            }
+        }
+
+        /* Correção de respiro entre o nome do portal e os botões (Desktop / Laptop) */
+        @media (min-width: 768px) {
+            #main-navbar > .container {
+                max-width: 1460px;
+            }
+
+            /* Garante espaçamento mínimo entre o nome do portal e o bloco de botões */
+            #main-navbar > .container > .d-flex {
+                gap: 1.5rem;
+            }
+
+            #main-navbar > .container > .d-flex > div:first-child {
+                flex-shrink: 0;
+            }
+
+            #main-navbar > .container > .d-flex > div:last-child {
+                gap: 0.75rem !important;
+            }
+        }
+
+        /* Calibração fina para notebooks padrão (1200px a 1399px) */
+        @media (min-width: 1200px) and (max-width: 1399.98px) {
+            #main-navbar > .container {
+                max-width: 100%;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            #main-navbar > .container > .d-flex {
+                gap: 1.15rem;
+            }
+
+            #main-navbar .crest-circle {
+                width: 44px;
+                height: 44px;
+            }
+
+            #main-navbar .font-liturgical {
+                font-size: 0.86rem !important;
+            }
+
+            #main-navbar .d-none.d-md-flex {
+                gap: 0.28rem !important;
+                margin-right: 0 !important;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn {
+                padding: 0 0.68rem !important;
+                font-size: 0.77rem;
+                gap: 0.35rem;
+            }
+        }
+
+        /* Calibração para telas intermediárias (768px a 1199px) */
+        @media (min-width: 768px) and (max-width: 1199.98px) {
+            #main-navbar > .container {
+                max-width: 100%;
+                padding-left: 0.85rem;
+                padding-right: 0.85rem;
+            }
+
+            #main-navbar > .container > .d-flex {
+                gap: 0.9rem;
+            }
+
+            #main-navbar > .container > .d-flex > div:last-child {
+                gap: 0.5rem !important;
+            }
+
+            #main-navbar .d-none.d-md-flex {
+                margin-right: 0 !important;
+            }
+
+            #main-navbar .d-none.d-md-flex > .btn {
+                padding: 0 0.52rem !important;
+                font-size: 0.72rem;
+            }
+        }
